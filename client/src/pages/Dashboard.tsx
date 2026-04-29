@@ -37,12 +37,12 @@ const Dashboard = () => {
             </a>
           </li>
           <li className="nav-item">
-            <a href="#" className="nav-link">
+            <Link to="/rooms" className="nav-link">
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m4 0h1m-5 10h5m-5 4h5" />
               </svg>
               Rooms
-            </a>
+            </Link>
           </li>
           <li className="nav-item">
             <a href="#" className="nav-link">
