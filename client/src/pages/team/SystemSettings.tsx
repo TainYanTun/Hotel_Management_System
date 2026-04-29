@@ -16,7 +16,7 @@ const SystemSettings = () => {
           ⚙️ System Settings
         </h2>
         <p style={{ color: "var(--color-body)", fontSize: "18px" }}>
-          <strong>Assigned to:</strong> Tain Yan Tun (Architect)
+          <strong>Assigned to:</strong> Siwaporn (Lead Dev)
         </p>
         <div
           style={{
