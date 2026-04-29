@@ -1,4 +1,3 @@
-import React from "react";
 import Layout from "../../components/Layout";
 
 const Guests = () => {
@@ -40,7 +39,9 @@ const Guests = () => {
             </li>
             <li>
               <strong>Isolation:</strong> Do not touch any files outside of this
-              assigned page.
+              assigned page. You are available to read for reference but do not
+              edit other pages unless its directly related to your assigned
+              page.
             </li>
             <li>
               <strong>Scope:</strong> Focus on pure UI implementation based on{" "}

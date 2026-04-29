@@ -40,9 +40,10 @@ The team enforced **formal Pull Request reviews** before merging.
 
 ### Example PRs:
 
-1. **PR #12 — Reservation Module Implementation**
-2. **PR #18 — RBAC Authentication System**
-3. **PR #23 — Billing & Invoice Logic**
+1. **PR #1 — Initial Project Restructuring (Client/Server)**
+2. **PR #2 — Authentication Logic & JWT Implementation**
+3. **PR #3 — Rooms Management Module & Inventories**
+4. **PR #4 — Team Collaboration Templates & Layout Refactor**
 
 Each PR included:
 
@@ -64,11 +65,11 @@ The team used **GitHub Projects / Issues Board** to track tasks.
 
 ### Example Tasks:
 
-* Implement reservation logic
-* Design database schema
-* Build authentication module
-* Create invoice generation
-* Write unit tests
+* Setup Neon Postgres cloud database
+* Implement authentication with bcrypt & JWT
+* Build Rooms Management UI & API
+* Refactor shared Layout & Sidebar components
+* Create team assignment templates
 
 📌 *[Insert Issue Board Screenshot]*
 
@@ -78,21 +79,21 @@ The team used **GitHub Projects / Issues Board** to track tasks.
 
 ## **3.1 Hybrid Pair Programming & AI Oversight**
 
-### **Session 1: Reservation Logic Implementation**
+### **Session 1: Authentication & RBAC setup**
 
 * **Driver:** Siwaporn (Lead Developer)
-* **Navigator:** Tain Yan Tun (Architect)
-* **AI Role:** Used for logic scaffolding
+* **Navigator:** AI Agent (Antigravity)
+* **AI Role:** Used for JWT scaffolding & bcrypt logic
 
 **Prompt Example:**
 
-> "Generate reservation validation logic ensuring no overlapping bookings for the same room."
+> "Implement the register and login logic with password hashing and JWT generation."
 
 **Navigator Oversight:**
 
-* Verified time conflict logic
-* Added edge-case handling (same-day checkout/check-in)
-* Improved performance with indexed queries
+* Corrected relative paths for DB imports (../../../db/index.js)
+* Added environment variable validation
+* Implemented role-based token payload
 
 ---
 
@@ -119,30 +120,30 @@ The team used **GitHub Projects / Issues Board** to track tasks.
 
 **Before (Violation of SRP):**
 
-```java
-class InvoiceService {
-    void processInvoice() {
-        calculateTotal();
-        saveToDatabase();
-        sendEmail();
-    }
-}
+```tsx
+const Dashboard = () => {
+  return (
+    <div className="layout">
+      <aside className="sidebar">...</aside>
+      <main>...</main>
+    </div>
+  );
+};
 ```
 
 **After (SRP Applied):**
 
-```java
-class InvoiceCalculator {
-    double calculateTotal() { }
-}
-
-class InvoiceRepository {
-    void save() { }
-}
-
-class NotificationService {
-    void sendEmail() { }
-}
+```tsx
+// Sidebar.tsx - Handles Navigation
+// Layout.tsx - Handles Structure
+// Dashboard.tsx - Handles Content Only
+const Dashboard = () => {
+  return (
+    <Layout>
+      <OverviewContent />
+    </Layout>
+  );
+};
 ```
 
 ---
@@ -240,17 +241,20 @@ void testReservationSuccess() {
 
 ## **5.2 Defensive Resilience**
 
-### **Code Example**
+### **Code Example (React fetch)**
 
-```java
-if (dbConnection == null) {
-    throw new SystemException("Unable to connect to database. Please try again.");
+```tsx
+if (contentType && contentType.includes('application/json')) {
+    data = await response.json();
+} else {
+    const text = await response.text();
+    throw new Error(`Server error (${response.status}): ${text}`);
 }
 ```
 
 ### **User Message**
 
-> "We are experiencing temporary issues. Please try again or contact support."
+> "Server returned non-JSON response (500): Database connection failed..."
 
 📌 *[Insert Screenshot of Error Message]*
 
