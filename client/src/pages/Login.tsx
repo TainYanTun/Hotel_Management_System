@@ -1,12 +1,50 @@
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const contentType = response.headers.get('content-type');
+      let data;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(`Server returned non-JSON response (${response.status}): ${text.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Store token and user info
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
   return (
     <div className="auth-layout">
       <div className="auth-header">
@@ -21,14 +59,22 @@ const Login = () => {
       </div>
       
       <div className="card">
+        {error && (
+          <div style={{ color: '#df1b41', background: '#fff1f2', padding: '12px', borderRadius: '4px', marginBottom: '16px', fontSize: '14px' }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email address</label>
+            <label htmlFor="username">Username</label>
             <input 
-              type="email" 
-              id="email" 
-              placeholder="name@company.com" 
+              type="text" 
+              id="username" 
+              placeholder="e.g. admin_su" 
               required 
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
             />
           </div>
           
@@ -42,11 +88,13 @@ const Login = () => {
               id="password" 
               placeholder="••••••••" 
               required 
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
           </div>
           
-          <button type="submit" className="btn-primary full-width" style={{ marginTop: '8px' }}>
-            Sign in
+          <button type="submit" className="btn-primary full-width" style={{ marginTop: '8px' }} disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
         
