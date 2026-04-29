@@ -1,0 +1,15 @@
+{
+  "name": "hotel-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run start\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm run start",
+    "db:init": "cd server && npm run db:init"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

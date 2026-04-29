@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# Hotel Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A professional, high-fidelity Hotel Management System built with React, Express, and PostgreSQL (Neon). Designed with a premium Stripe-inspired aesthetic.
 
-Currently, two official plugins are available:
+## 🏛️ Project Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The project follows a clean separation of concerns:
+- **`/client`**: React 19 + Vite frontend.
+- **`/server`**: Node.js + Express backend.
+- **Cloud Database**: Managed PostgreSQL via [Neon](https://neon.tech/).
 
-## React Compiler
+## 🚀 Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
+- Node.js installed.
+- Neon account for cloud database (already configured in `.env`).
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Installation
+Run the following command in the root directory to install all dependencies:
+```bash
+npm run install:all
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Development
+Start both the frontend and backend simultaneously:
+```bash
+npm run dev
 ```
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend API: [http://localhost:5001](http://localhost:5001)
+
+### Database Migration
+If you need to re-initialize the database schema:
+```bash
+npm run db:init
+```
+
+### Deployment
+The project is configured for a monolith-style deployment where the Express server serves the React app:
+1. Build the frontend: `npm run build`
+2. Start the server: `npm run start`
+
+## 🎨 Design System
+Based on the Stripe design philosophy:
+- **Typography**: Sohne-style variables.
+- **Borders**: Conservative 4px–8px radius.
+- **Shadows**: Multi-layered, blue-tinted shadows.
+- **Palette**: Deep purples, clean whites, and high-contrast text.
+
+## 📄 License
+Private Project - Hotel Hub Team.
