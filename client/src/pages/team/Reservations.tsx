@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Layout from "../../components/Layout";
 
 type ReservationStatus =
@@ -56,106 +56,6 @@ const statusOptions: Array<ReservationStatus | "ALL"> = [
   "CANCELLED",
 ];
 
-const mockReservations: Reservation[] = [
-  {
-    reservation_id: 1008,
-    guest_name: "John Smith",
-    phone: "+1 555-0101",
-    email: "john@example.com",
-    room_number: "101",
-    room_type: "Standard",
-    check_in_date: "2026-05-01",
-    check_out_date: "2026-05-03",
-    booking_date: "2026-04-19",
-    status: "CONFIRMED",
-    price_per_night: 150,
-  },
-  {
-    reservation_id: 1009,
-    guest_name: "Sarah Johnson",
-    phone: "+1 555-0102",
-    email: "sarah@example.com",
-    room_number: "205",
-    room_type: "Deluxe",
-    check_in_date: "2026-05-02",
-    check_out_date: "2026-05-05",
-    booking_date: "2026-04-21",
-    status: "PENDING",
-    price_per_night: 280,
-  },
-  {
-    reservation_id: 1010,
-    guest_name: "Michael Brown",
-    phone: "+1 555-0103",
-    email: "michael@example.com",
-    room_number: "302",
-    room_type: "Suite",
-    check_in_date: "2026-04-28",
-    check_out_date: "2026-05-01",
-    booking_date: "2026-04-12",
-    status: "CHECKED_IN",
-    price_per_night: 450,
-  },
-  {
-    reservation_id: 1011,
-    guest_name: "Emily Davis",
-    phone: "+1 555-0104",
-    email: "emily@example.com",
-    room_number: "108",
-    room_type: "Standard",
-    check_in_date: "2026-04-25",
-    check_out_date: "2026-04-28",
-    booking_date: "2026-04-08",
-    status: "CHECKED_OUT",
-    price_per_night: 180,
-  },
-  {
-    reservation_id: 1012,
-    guest_name: "David Wilson",
-    phone: "+1 555-0105",
-    email: "david@example.com",
-    room_number: "401",
-    room_type: "Presidential",
-    check_in_date: "2026-05-10",
-    check_out_date: "2026-05-15",
-    booking_date: "2026-04-25",
-    status: "CANCELLED",
-    price_per_night: 750,
-  },
-  {
-    reservation_id: 1013,
-    guest_name: "Ava Martinez",
-    phone: "+1 555-0106",
-    email: "ava@example.com",
-    room_number: "210",
-    room_type: "Deluxe",
-    check_in_date: "2026-05-06",
-    check_out_date: "2026-05-09",
-    booking_date: "2026-04-27",
-    status: "CONFIRMED",
-    price_per_night: 260,
-  },
-];
-
-const mockGuests: Guest[] = [
-  { guest_id: 1, full_name: "John Smith", email: "john@example.com", phone: "+1 555-0101" },
-  { guest_id: 2, full_name: "Sarah Johnson", email: "sarah@example.com", phone: "+1 555-0102" },
-  { guest_id: 3, full_name: "Michael Brown", email: "michael@example.com", phone: "+1 555-0103" },
-  { guest_id: 4, full_name: "Emily Davis", email: "emily@example.com", phone: "+1 555-0104" },
-  { guest_id: 5, full_name: "David Wilson", email: "david@example.com", phone: "+1 555-0105" },
-  { guest_id: 6, full_name: "Ava Martinez", email: "ava@example.com", phone: "+1 555-0106" },
-];
-
-const mockRooms: Room[] = [
-  { room_id: 1, room_number: "101", room_type: "Standard", status: "AVAILABLE", price_per_night: 150 },
-  { room_id: 2, room_number: "108", room_type: "Standard", status: "AVAILABLE", price_per_night: 180 },
-  { room_id: 3, room_number: "205", room_type: "Deluxe", status: "AVAILABLE", price_per_night: 280 },
-  { room_id: 4, room_number: "210", room_type: "Deluxe", status: "RESERVED", price_per_night: 260 },
-  { room_id: 5, room_number: "302", room_type: "Suite", status: "OCCUPIED", price_per_night: 450 },
-  { room_id: 6, room_number: "401", room_type: "Presidential", status: "RESERVED", price_per_night: 750 },
-  { room_id: 7, room_number: "118", room_type: "Standard", status: "MAINTENANCE", price_per_night: 175 },
-];
-
 const emptyForm: FormData = {
   guest_id: "",
   room_id: "",
@@ -164,48 +64,120 @@ const emptyForm: FormData = {
   status: "PENDING",
 };
 
-const formatDate = (date: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(`${date}T00:00:00`));
+const formatDate = (date: string) => {
+  if (!date) return "—";
+  try {
+    const d = date.includes('T') ? new Date(date) : new Date(`${date}T00:00:00`);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(d);
+  } catch (e) {
+    return date;
+  }
+};
 
-const formatMoney = (amount: number) =>
-  new Intl.NumberFormat("en-US", {
+const formatMoney = (amount: number | string) => {
+  const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(value || 0);
+};
 
-const getNights = (checkIn: string, checkOut: string) =>
-  Math.max(
-    1,
-    Math.ceil(
-      (new Date(`${checkOut}T00:00:00`).getTime() -
-        new Date(`${checkIn}T00:00:00`).getTime()) /
-        (1000 * 60 * 60 * 24),
-    ),
-  );
+const getNights = (checkIn: string, checkOut: string) => {
+  if (!checkIn || !checkOut) return 0;
+  try {
+    const start = checkIn.includes('T') ? new Date(checkIn) : new Date(`${checkIn}T00:00:00`);
+    const end = checkOut.includes('T') ? new Date(checkOut) : new Date(`${checkOut}T00:00:00`);
+    
+    // Reset hours to ensure we only count full days
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return Math.max(1, diffDays);
+  } catch (e) {
+    return 0;
+  }
+};
 
 const humanizeStatus = (status: string) =>
   status
-    .split("_")
-    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-    .join(" ");
+    ? status
+        .split("_")
+        .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+        .join(" ")
+    : "—";
 
 const getStatusClassName = (status: ReservationStatus | RoomStatus) =>
-  `statusBadge status-${status.toLowerCase().replace("_", "-")}`;
+  `statusBadge status-${status?.toLowerCase().replace("_", "-") || 'unknown'}`;
 
 const Reservations = () => {
   const [filterStatus, setFilterStatus] = useState<ReservationStatus | "ALL">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<FormData>(emptyForm);
+  
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    setIsLoading(true);
+    try {
+      const [resRes, guestRes, roomRes] = await Promise.all([
+        fetch('/api/reservations'),
+        fetch('/api/guests'),
+        fetch('/api/rooms')
+      ]);
+      
+      const [resData, guestData, roomData] = await Promise.all([
+        resRes.json(),
+        guestRes.json(),
+        roomRes.json()
+      ]);
+      
+      setReservations(resData);
+      setGuests(guestData);
+      setRooms(roomData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      if (response.ok) {
+        closeModal();
+        fetchAllData();
+      }
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+    }
+  };
 
   const filteredReservations = useMemo(
     () =>
-      mockReservations.filter((reservation) => {
+      reservations.filter((reservation) => {
         const matchesStatus =
           filterStatus === "ALL" || reservation.status === filterStatus;
         const searchable = [
@@ -220,35 +192,37 @@ const Reservations = () => {
 
         return matchesStatus && searchable.includes(searchTerm.toLowerCase());
       }),
-    [filterStatus, searchTerm],
+    [reservations, filterStatus, searchTerm],
   );
 
   const metrics = useMemo(() => {
-    const activeReservations = mockReservations.filter(
+    const activeReservations = reservations.filter(
       (reservation) =>
         reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN",
     );
     const expectedRevenue = activeReservations.reduce(
       (total, reservation) =>
         total +
-        reservation.price_per_night *
+        (typeof reservation.price_per_night === 'string' ? parseFloat(reservation.price_per_night) : reservation.price_per_night) *
           getNights(reservation.check_in_date, reservation.check_out_date),
       0,
     );
-    const arrivalsToday = mockReservations.filter(
-      (reservation) => reservation.check_in_date === "2026-05-01",
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const arrivalsToday = reservations.filter(
+      (reservation) => reservation.check_in_date.split('T')[0] === todayStr,
     ).length;
-    const availableRooms = mockRooms.filter((room) => room.status === "AVAILABLE").length;
+    const availableRooms = rooms.filter((room) => room.status === "AVAILABLE").length;
 
     return [
       { label: "Active reservations", value: activeReservations.length.toString(), detail: "Confirmed and in-house" },
       { label: "Expected revenue", value: formatMoney(expectedRevenue), detail: "From active stays" },
-      { label: "Arrivals today", value: arrivalsToday.toString(), detail: "May 1 operational queue" },
+      { label: "Arrivals today", value: arrivalsToday.toString(), detail: "Live operational queue" },
       { label: "Available rooms", value: availableRooms.toString(), detail: "Ready for assignment" },
     ];
-  }, []);
+  }, [reservations, rooms]);
 
-  const selectedRoom = mockRooms.find((room) => room.room_id.toString() === formData.room_id);
+  const selectedRoom = rooms.find((room) => room.room_id.toString() === formData.room_id);
   const projectedNights =
     formData.check_in_date && formData.check_out_date
       ? getNights(formData.check_in_date, formData.check_out_date)
@@ -278,13 +252,34 @@ const Reservations = () => {
             </p>
           </div>
           <div className="heroActions">
-            <button className="ghostButton" type="button">
-              Export Manifest
+            <button className="ghostButton" type="button" onClick={() => fetchAllData()}>
+              Refresh Feed
             </button>
             <button className="primaryButton" type="button" onClick={() => setShowModal(true)}>
               New Reservation
             </button>
           </div>
+        </section>
+
+        <section className="workflowCard horizontal">
+          <div className="workflowHeader">
+            <span className="eyebrow">Operational Path</span>
+            <h2>Pending to checked out</h2>
+          </div>
+          <ol className="workflowSteps">
+            <li>
+              <span>1</span>
+              <p>Capture guest, room, and stay dates.</p>
+            </li>
+            <li>
+              <span>2</span>
+              <p>Confirm reservation and reserve the assigned room.</p>
+            </li>
+            <li>
+              <span>3</span>
+              <p>Check in, invoice, collect payment, and release room.</p>
+            </li>
+          </ol>
         </section>
 
         <section className="metricGrid" aria-label="Reservation summary">
@@ -297,8 +292,8 @@ const Reservations = () => {
           ))}
         </section>
 
-        <section className="workspaceGrid">
-          <div className="reservationPanel">
+        <div className="workspaceLayout">
+          <section className="reservationPanel">
             <div className="panelHeader">
               <div>
                 <h2>Reservation Queue</h2>
@@ -343,92 +338,56 @@ const Reservations = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredReservations.map((reservation) => {
-                    const nights = getNights(
-                      reservation.check_in_date,
-                      reservation.check_out_date,
-                    );
-                    const total = reservation.price_per_night * nights;
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>Loading reservations...</td>
+                    </tr>
+                  ) : filteredReservations.length > 0 ? (
+                    filteredReservations.map((reservation) => {
+                      const nights = getNights(
+                        reservation.check_in_date,
+                        reservation.check_out_date,
+                      );
+                      const total = (typeof reservation.price_per_night === 'string' ? parseFloat(reservation.price_per_night) : reservation.price_per_night) * nights;
 
-                    return (
-                      <tr key={reservation.reservation_id}>
-                        <td>
-                          <strong>#{reservation.reservation_id}</strong>
-                          <span>Booked {formatDate(reservation.booking_date)}</span>
-                        </td>
-                        <td>
-                          <strong>{reservation.guest_name}</strong>
-                          <span>{reservation.phone}</span>
-                        </td>
-                        <td>
-                          <strong>{reservation.room_number}</strong>
-                          <span>{reservation.room_type}</span>
-                        </td>
-                        <td>
-                          <strong>{formatDate(reservation.check_in_date)}</strong>
-                          <span>to {formatDate(reservation.check_out_date)}</span>
-                        </td>
-                        <td className="numericCell">{nights}</td>
-                        <td className="numericCell">{formatMoney(total)}</td>
-                        <td>
-                          <span className={getStatusClassName(reservation.status)}>
-                            {humanizeStatus(reservation.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      return (
+                        <tr key={reservation.reservation_id}>
+                          <td>
+                            <strong>#{reservation.reservation_id}</strong>
+                            <span>Booked {formatDate(reservation.booking_date)}</span>
+                          </td>
+                          <td>
+                            <strong>{reservation.guest_name}</strong>
+                            <span>{reservation.phone}</span>
+                          </td>
+                          <td>
+                            <strong>{reservation.room_number}</strong>
+                            <span>{reservation.room_type}</span>
+                          </td>
+                          <td>
+                            <strong>{formatDate(reservation.check_in_date)}</strong>
+                            <span>to {formatDate(reservation.check_out_date)}</span>
+                          </td>
+                          <td className="numericCell">{nights}</td>
+                          <td className="numericCell">{formatMoney(total)}</td>
+                          <td>
+                            <span className={getStatusClassName(reservation.status)}>
+                              {humanizeStatus(reservation.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>No reservations found.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <aside className="sideStack" aria-label="Room availability and actions">
-            <section className="availabilityCard">
-              <div className="panelHeader compact">
-                <div>
-                  <h2>Room Availability</h2>
-                  <p>Live assignment model</p>
-                </div>
-              </div>
-              <div className="roomList">
-                {mockRooms.map((room) => (
-                  <div className="roomItem" key={room.room_id}>
-                    <div>
-                      <strong>Room {room.room_number}</strong>
-                      <span>{room.room_type}</span>
-                    </div>
-                    <div>
-                      <span className={getStatusClassName(room.status)}>
-                        {humanizeStatus(room.status)}
-                      </span>
-                      <small>{formatMoney(room.price_per_night)}/night</small>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="workflowCard">
-              <span className="eyebrow">Operational Path</span>
-              <h2>Pending to checked out</h2>
-              <ol>
-                <li>
-                  <span>1</span>
-                  <p>Capture guest, room, and stay dates.</p>
-                </li>
-                <li>
-                  <span>2</span>
-                  <p>Confirm reservation and reserve the assigned room.</p>
-                </li>
-                <li>
-                  <span>3</span>
-                  <p>Check in, invoice services, collect payment, and release room.</p>
-                </li>
-              </ol>
-            </section>
-          </aside>
-        </section>
+          </section>
+        </div>
 
         {showModal && (
           <div className="modalOverlay" role="presentation" onClick={closeModal}>
@@ -456,19 +415,17 @@ const Reservations = () => {
 
               <form
                 className="reservationForm"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  closeModal();
-                }}
+                onSubmit={handleSubmit}
               >
                 <label>
                   Guest
                   <select
+                    required
                     value={formData.guest_id}
                     onChange={(event) => updateForm("guest_id", event.target.value)}
                   >
                     <option value="">Select guest profile</option>
-                    {mockGuests.map((guest) => (
+                    {guests.map((guest) => (
                       <option key={guest.guest_id} value={guest.guest_id}>
                         {guest.full_name} - {guest.phone}
                       </option>
@@ -479,12 +436,13 @@ const Reservations = () => {
                 <label>
                   Room
                   <select
+                    required
                     value={formData.room_id}
                     onChange={(event) => updateForm("room_id", event.target.value)}
                   >
                     <option value="">Select available room</option>
-                    {mockRooms
-                      .filter((room) => room.status === "AVAILABLE")
+                    {rooms
+                      .filter((room) => room.status === "AVAILABLE" || room.room_id.toString() === formData.room_id)
                       .map((room) => (
                         <option key={room.room_id} value={room.room_id}>
                           {room.room_number} - {room.room_type} -{" "}
@@ -498,6 +456,7 @@ const Reservations = () => {
                   <label>
                     Check-in
                     <input
+                      required
                       type="date"
                       value={formData.check_in_date}
                       onChange={(event) => updateForm("check_in_date", event.target.value)}
@@ -506,6 +465,7 @@ const Reservations = () => {
                   <label>
                     Check-out
                     <input
+                      required
                       type="date"
                       value={formData.check_out_date}
                       onChange={(event) => updateForm("check_out_date", event.target.value)}
@@ -697,15 +657,28 @@ const reservationStyles = `
     margin: 0;
   }
 
-  .workspaceGrid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+  .workspaceLayout {
+    display: flex;
+    flex-direction: column;
     gap: 24px;
-    align-items: start;
   }
 
-  .reservationPanel,
-  .availabilityCard,
+  .reservationPanel {
+    background: #ffffff;
+    border: 1px solid #e5edf5;
+    border-radius: 6px;
+    padding: 24px;
+    box-shadow: rgba(50,50,93,0.18) 0px 24px 42px -28px, rgba(0,0,0,0.08) 0px 14px 26px -18px;
+    width: 100%;
+  }
+
+  .bottomRow {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: stretch;
+  }
+
   .workflowCard {
     padding: 24px;
   }
@@ -889,34 +862,19 @@ const reservationStyles = `
     color: #ea2261;
   }
 
-  .sideStack {
-    display: grid;
-    gap: 24px;
-  }
-
-  .roomList {
-    display: grid;
-    gap: 10px;
-  }
-
-  .roomItem {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: center;
-    border: 1px solid #e5edf5;
-    border-radius: 4px;
-    padding: 12px;
-  }
-
-  .roomItem > div:last-child {
-    display: grid;
-    justify-items: end;
-  }
-
   .workflowCard {
+    padding: 24px;
     background: #1c1e54;
     border-color: #1c1e54;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 48px;
+  }
+
+  .workflowHeader {
+    min-width: 200px;
   }
 
   .workflowCard .eyebrow,
@@ -924,25 +882,27 @@ const reservationStyles = `
     color: #ffffff;
   }
 
-  .workflowCard ol {
-    display: grid;
-    gap: 14px;
-    margin: 18px 0 0;
+  .workflowSteps {
+    display: flex;
+    gap: 32px;
+    margin: 0;
     padding: 0;
     list-style: none;
+    flex-grow: 1;
   }
 
-  .workflowCard li {
-    display: grid;
-    grid-template-columns: 28px 1fr;
+  .workflowSteps li {
+    display: flex;
     gap: 12px;
-    align-items: start;
+    align-items: center;
+    flex: 1;
   }
 
-  .workflowCard li span {
+  .workflowSteps li span {
     display: grid;
     width: 28px;
     height: 28px;
+    min-width: 28px;
     place-items: center;
     border: 1px solid rgba(255,255,255,0.22);
     border-radius: 4px;
@@ -951,12 +911,24 @@ const reservationStyles = `
     font-variant-numeric: tabular-nums;
   }
 
-  .workflowCard p {
-    margin: 2px 0 0;
+  .workflowSteps p {
+    margin: 0;
     color: rgba(255,255,255,0.72);
     font-size: 14px;
     font-weight: 300;
-    line-height: 1.4;
+    line-height: 1.3;
+  }
+
+  @media (max-width: 960px) {
+    .workflowCard {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .workflowSteps {
+      flex-direction: column;
+      gap: 16px;
+    }
   }
 
   .modalOverlay {
@@ -1044,12 +1016,8 @@ const reservationStyles = `
   }
 
   @media (max-width: 1100px) {
-    .workspaceGrid {
+    .bottomRow {
       grid-template-columns: 1fr;
-    }
-
-    .sideStack {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 

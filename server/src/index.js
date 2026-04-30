@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import roomsRoutes from './routes/rooms.js';
 import guestsRoutes from './routes/guests.js';
+import reservationsRoutes from './routes/reservations.js';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomsRoutes);
 app.use('/api/guests', guestsRoutes);
+app.use('/api/reservations', reservationsRoutes);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
