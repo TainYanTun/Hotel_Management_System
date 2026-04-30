@@ -172,6 +172,8 @@ total = days * ROOM_PRICE;
 
 # **4. Section 3: Software Quality Assurance (SQA) & Review Metrics**
 
+**Responsible Party:** Su Man (PM)
+
 ## **4.1 Metrics Audit**
 
 | Module                | Fan-In | Fan-Out | V(G) | LCOM   |
