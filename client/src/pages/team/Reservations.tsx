@@ -1,158 +1,549 @@
-import React, { useState } from 'react';
-import Layout from '../../components/Layout';
+import { useMemo, useState } from "react";
+import Layout from "../../components/Layout";
 
-// Mock data for UI demonstration (no API required)
-const mockReservations = [
-  { reservation_id: 1, guest_name: 'John Smith', room_number: '101', room_type: 'Standard', check_in_date: '2026-05-01', check_out_date: '2026-05-03', status: 'CONFIRMED', price: 150 },
-  { reservation_id: 2, guest_name: 'Sarah Johnson', room_number: '205', room_type: 'Deluxe', check_in_date: '2026-05-02', check_out_date: '2026-05-05', status: 'PENDING', price: 280 },
-  { reservation_id: 3, guest_name: 'Michael Brown', room_number: '302', room_type: 'Suite', check_in_date: '2026-04-28', check_out_date: '2026-05-01', status: 'CHECKED_IN', price: 450 },
-  { reservation_id: 4, guest_name: 'Emily Davis', room_number: '108', room_type: 'Standard', check_in_date: '2026-04-25', check_out_date: '2026-04-28', status: 'CHECKED_OUT', price: 180 },
-  { reservation_id: 5, guest_name: 'David Wilson', room_number: '401', room_type: 'Presidential', check_in_date: '2026-05-10', check_out_date: '2026-05-15', status: 'CANCELLED', price: 750 },
+type ReservationStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "CANCELLED"
+  | "CHECKED_IN"
+  | "CHECKED_OUT";
+
+type RoomStatus = "AVAILABLE" | "RESERVED" | "OCCUPIED" | "MAINTENANCE";
+
+type Reservation = {
+  reservation_id: number;
+  guest_name: string;
+  phone: string;
+  email: string;
+  room_number: string;
+  room_type: string;
+  check_in_date: string;
+  check_out_date: string;
+  booking_date: string;
+  status: ReservationStatus;
+  price_per_night: number;
+};
+
+type Guest = {
+  guest_id: number;
+  full_name: string;
+  email: string;
+  phone: string;
+};
+
+type Room = {
+  room_id: number;
+  room_number: string;
+  room_type: string;
+  status: RoomStatus;
+  price_per_night: number;
+};
+
+type FormData = {
+  guest_id: string;
+  room_id: string;
+  check_in_date: string;
+  check_out_date: string;
+  status: ReservationStatus;
+};
+
+const statusOptions: Array<ReservationStatus | "ALL"> = [
+  "ALL",
+  "PENDING",
+  "CONFIRMED",
+  "CHECKED_IN",
+  "CHECKED_OUT",
+  "CANCELLED",
 ];
 
-const mockGuests = [
-  { guest_id: 1, full_name: 'John Smith', email: 'john@example.com', phone: '+1 555-0101' },
-  { guest_id: 2, full_name: 'Sarah Johnson', email: 'sarah@example.com', phone: '+1 555-0102' },
-  { guest_id: 3, full_name: 'Michael Brown', email: 'michael@example.com', phone: '+1 555-0103' },
-  { guest_id: 4, full_name: 'Emily Davis', email: 'emily@example.com', phone: '+1 555-0104' },
-  { guest_id: 5, full_name: 'David Wilson', email: 'david@example.com', phone: '+1 555-0105' },
+const mockReservations: Reservation[] = [
+  {
+    reservation_id: 1008,
+    guest_name: "John Smith",
+    phone: "+1 555-0101",
+    email: "john@example.com",
+    room_number: "101",
+    room_type: "Standard",
+    check_in_date: "2026-05-01",
+    check_out_date: "2026-05-03",
+    booking_date: "2026-04-19",
+    status: "CONFIRMED",
+    price_per_night: 150,
+  },
+  {
+    reservation_id: 1009,
+    guest_name: "Sarah Johnson",
+    phone: "+1 555-0102",
+    email: "sarah@example.com",
+    room_number: "205",
+    room_type: "Deluxe",
+    check_in_date: "2026-05-02",
+    check_out_date: "2026-05-05",
+    booking_date: "2026-04-21",
+    status: "PENDING",
+    price_per_night: 280,
+  },
+  {
+    reservation_id: 1010,
+    guest_name: "Michael Brown",
+    phone: "+1 555-0103",
+    email: "michael@example.com",
+    room_number: "302",
+    room_type: "Suite",
+    check_in_date: "2026-04-28",
+    check_out_date: "2026-05-01",
+    booking_date: "2026-04-12",
+    status: "CHECKED_IN",
+    price_per_night: 450,
+  },
+  {
+    reservation_id: 1011,
+    guest_name: "Emily Davis",
+    phone: "+1 555-0104",
+    email: "emily@example.com",
+    room_number: "108",
+    room_type: "Standard",
+    check_in_date: "2026-04-25",
+    check_out_date: "2026-04-28",
+    booking_date: "2026-04-08",
+    status: "CHECKED_OUT",
+    price_per_night: 180,
+  },
+  {
+    reservation_id: 1012,
+    guest_name: "David Wilson",
+    phone: "+1 555-0105",
+    email: "david@example.com",
+    room_number: "401",
+    room_type: "Presidential",
+    check_in_date: "2026-05-10",
+    check_out_date: "2026-05-15",
+    booking_date: "2026-04-25",
+    status: "CANCELLED",
+    price_per_night: 750,
+  },
+  {
+    reservation_id: 1013,
+    guest_name: "Ava Martinez",
+    phone: "+1 555-0106",
+    email: "ava@example.com",
+    room_number: "210",
+    room_type: "Deluxe",
+    check_in_date: "2026-05-06",
+    check_out_date: "2026-05-09",
+    booking_date: "2026-04-27",
+    status: "CONFIRMED",
+    price_per_night: 260,
+  },
 ];
 
-const mockRooms = [
-  { room_id: 1, room_number: '101', room_type: 'Standard', status: 'AVAILABLE', price_per_night: 75 },
-  { room_id: 2, room_number: '205', room_type: 'Deluxe', status: 'AVAILABLE', price_per_night: 140 },
-  { room_id: 3, room_number: '302', room_type: 'Suite', status: 'OCCUPIED', price_per_night: 225 },
-  { room_id: 4, room_number: '108', room_type: 'Standard', status: 'AVAILABLE', price_per_night: 90 },
-  { room_id: 5, room_number: '401', room_type: 'Presidential', status: 'RESERVED', price_per_night: 375 },
+const mockGuests: Guest[] = [
+  { guest_id: 1, full_name: "John Smith", email: "john@example.com", phone: "+1 555-0101" },
+  { guest_id: 2, full_name: "Sarah Johnson", email: "sarah@example.com", phone: "+1 555-0102" },
+  { guest_id: 3, full_name: "Michael Brown", email: "michael@example.com", phone: "+1 555-0103" },
+  { guest_id: 4, full_name: "Emily Davis", email: "emily@example.com", phone: "+1 555-0104" },
+  { guest_id: 5, full_name: "David Wilson", email: "david@example.com", phone: "+1 555-0105" },
+  { guest_id: 6, full_name: "Ava Martinez", email: "ava@example.com", phone: "+1 555-0106" },
 ];
+
+const mockRooms: Room[] = [
+  { room_id: 1, room_number: "101", room_type: "Standard", status: "AVAILABLE", price_per_night: 150 },
+  { room_id: 2, room_number: "108", room_type: "Standard", status: "AVAILABLE", price_per_night: 180 },
+  { room_id: 3, room_number: "205", room_type: "Deluxe", status: "AVAILABLE", price_per_night: 280 },
+  { room_id: 4, room_number: "210", room_type: "Deluxe", status: "RESERVED", price_per_night: 260 },
+  { room_id: 5, room_number: "302", room_type: "Suite", status: "OCCUPIED", price_per_night: 450 },
+  { room_id: 6, room_number: "401", room_type: "Presidential", status: "RESERVED", price_per_night: 750 },
+  { room_id: 7, room_number: "118", room_type: "Standard", status: "MAINTENANCE", price_per_night: 175 },
+];
+
+const emptyForm: FormData = {
+  guest_id: "",
+  room_id: "",
+  check_in_date: "",
+  check_out_date: "",
+  status: "PENDING",
+};
+
+const formatDate = (date: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00`));
+
+const formatMoney = (amount: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+const getNights = (checkIn: string, checkOut: string) =>
+  Math.max(
+    1,
+    Math.ceil(
+      (new Date(`${checkOut}T00:00:00`).getTime() -
+        new Date(`${checkIn}T00:00:00`).getTime()) /
+        (1000 * 60 * 60 * 24),
+    ),
+  );
+
+const humanizeStatus = (status: string) =>
+  status
+    .split("_")
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(" ");
+
+const getStatusClassName = (status: ReservationStatus | RoomStatus) =>
+  `statusBadge status-${status.toLowerCase().replace("_", "-")}`;
 
 const Reservations = () => {
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<ReservationStatus | "ALL">("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ guest_id: '', room_id: '', check_in_date: '', check_out_date: '' });
+  const [formData, setFormData] = useState<FormData>(emptyForm);
 
-  const filteredData = mockReservations.filter(res => {
-    const matchesStatus = filterStatus === 'ALL' || res.status === filterStatus;
-    const matchesSearch = searchTerm === '' || 
-      res.guest_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      res.room_number.includes(searchTerm);
-    return matchesStatus && matchesSearch;
-  });
+  const filteredReservations = useMemo(
+    () =>
+      mockReservations.filter((reservation) => {
+        const matchesStatus =
+          filterStatus === "ALL" || reservation.status === filterStatus;
+        const searchable = [
+          reservation.reservation_id,
+          reservation.guest_name,
+          reservation.room_number,
+          reservation.room_type,
+          reservation.status,
+        ]
+          .join(" ")
+          .toLowerCase();
 
-  const getStatusStyle = (status: string) => {
-    const map: Record<string, { bg: string; text: string; border: string }> = {
-      PENDING: { bg: 'rgba(83,58,253,0.1)', text: '#533afd', border: 'rgba(83,58,253,0.3)' },
-      CONFIRMED: { bg: 'rgba(21,190,83,0.2)', text: '#108c3d', border: 'rgba(21,190,83,0.4)' },
-      CANCELLED: { bg: 'rgba(234,34,97,0.1)', text: '#ea2261', border: 'rgba(234,34,97,0.3)' },
-      CHECKED_IN: { bg: 'rgba(50,50,93,0.15)', text: '#061b31', border: 'rgba(50,50,93,0.3)' },
-      CHECKED_OUT: { bg: 'rgba(100,116,141,0.15)', text: '#64748d', border: 'rgba(100,116,141,0.3)' },
-    };
-    return map[status] || map.PENDING;
+        return matchesStatus && searchable.includes(searchTerm.toLowerCase());
+      }),
+    [filterStatus, searchTerm],
+  );
+
+  const metrics = useMemo(() => {
+    const activeReservations = mockReservations.filter(
+      (reservation) =>
+        reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN",
+    );
+    const expectedRevenue = activeReservations.reduce(
+      (total, reservation) =>
+        total +
+        reservation.price_per_night *
+          getNights(reservation.check_in_date, reservation.check_out_date),
+      0,
+    );
+    const arrivalsToday = mockReservations.filter(
+      (reservation) => reservation.check_in_date === "2026-05-01",
+    ).length;
+    const availableRooms = mockRooms.filter((room) => room.status === "AVAILABLE").length;
+
+    return [
+      { label: "Active reservations", value: activeReservations.length.toString(), detail: "Confirmed and in-house" },
+      { label: "Expected revenue", value: formatMoney(expectedRevenue), detail: "From active stays" },
+      { label: "Arrivals today", value: arrivalsToday.toString(), detail: "May 1 operational queue" },
+      { label: "Available rooms", value: availableRooms.toString(), detail: "Ready for assignment" },
+    ];
+  }, []);
+
+  const selectedRoom = mockRooms.find((room) => room.room_id.toString() === formData.room_id);
+  const projectedNights =
+    formData.check_in_date && formData.check_out_date
+      ? getNights(formData.check_in_date, formData.check_out_date)
+      : 0;
+  const projectedTotal = selectedRoom ? selectedRoom.price_per_night * projectedNights : 0;
+
+  const updateForm = (field: keyof FormData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
   };
 
-  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const getNights = (inDate: string, outDate: string) => Math.ceil((new Date(outDate).getTime() - new Date(inDate).getTime()) / (1000 * 60 * 60 * 24));
+  const closeModal = () => {
+    setShowModal(false);
+    setFormData(emptyForm);
+  };
 
   return (
     <Layout>
-      <div style={styles.page}>
-        {/* Header */}
-        <div style={styles.header}>
+      <style>{reservationStyles}</style>
+      <div className="reservationsPage">
+        <section className="reservationsHero">
           <div>
-            <h1 style={styles.title}>Reservations</h1>
-            <p style={styles.subtitle}>Manage hotel bookings and reservations</p>
+            <span className="eyebrow">Reservations Engine</span>
+            <h1>Bookings, room assignment, and stay status in one workspace.</h1>
+            <p>
+              A schema-aligned control surface for reception teams to review
+              reservation flow, guest details, room readiness, and upcoming stays.
+            </p>
           </div>
-          <button style={styles.primaryButton} onClick={() => setShowModal(true)}>+ New Reservation</button>
-        </div>
-
-        {/* Filters */}
-        <div style={styles.filters}>
-          <div style={styles.searchBox}>
-            <span style={styles.searchIcon}>🔍</span>
-            <input type="text" placeholder="Search by guest or room..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.searchInput} />
+          <div className="heroActions">
+            <button className="ghostButton" type="button">
+              Export Manifest
+            </button>
+            <button className="primaryButton" type="button" onClick={() => setShowModal(true)}>
+              New Reservation
+            </button>
           </div>
-          <div style={styles.statusFilters}>
-            {['ALL', 'PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'].map(status => (
-              <button key={status} onClick={() => setFilterStatus(status)} style={{ ...styles.filterButton, ...(filterStatus === status ? styles.filterButtonActive : {}) }}>
-                {status === 'ALL' ? 'All' : status.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
+        </section>
 
-        {/* Table Card */}
-        <div style={styles.tableCard}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.tableHeader}>
-                <th style={styles.th}>ID</th>
-                <th style={styles.th}>Guest</th>
-                <th style={styles.th}>Room</th>
-                <th style={styles.th}>Check-in</th>
-                <th style={styles.th}>Check-out</th>
-                <th style={styles.th}>Nights</th>
-                <th style={styles.th}>Total</th>
-                <th style={styles.th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredData.map(res => {
-                const badge = getStatusStyle(res.status);
-                const nights = getNights(res.check_in_date, res.check_out_date);
-                return (
-                  <tr key={res.reservation_id} style={styles.tableRow}>
-                    <td style={styles.td}>#{res.reservation_id}</td>
-                    <td style={styles.td}><span style={styles.guestName}>{res.guest_name}</span></td>
-                    <td style={styles.td}><span style={styles.roomBadge}>{res.room_number} <small>{res.room_type}</small></span></td>
-                    <td style={styles.td}>{formatDate(res.check_in_date)}</td>
-                    <td style={styles.td}>{formatDate(res.check_out_date)}</td>
-                    <td style={styles.td}><span style={styles.nightsBadge}>{nights}</span></td>
-                    <td style={styles.td}><strong>${res.price * nights}</strong></td>
-                    <td style={styles.td}><span style={{ ...styles.statusBadge, backgroundColor: badge.bg, color: badge.text, border: `1px solid ${badge.border}` }}>{res.status}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <section className="metricGrid" aria-label="Reservation summary">
+          {metrics.map((metric) => (
+            <article className="metricCard" key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+              <p>{metric.detail}</p>
+            </article>
+          ))}
+        </section>
 
-        {/* Modal */}
-        {showModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-            <div style={styles.modal} onClick={e => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>New Reservation</h2>
-                <button onClick={() => setShowModal(false)} style={styles.modalClose}>×</button>
+        <section className="workspaceGrid">
+          <div className="reservationPanel">
+            <div className="panelHeader">
+              <div>
+                <h2>Reservation Queue</h2>
+                <p>{filteredReservations.length} records matched</p>
               </div>
-              <form style={styles.form} onSubmit={(e) => { e.preventDefault(); setShowModal(false); }}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Guest</label>
-                  <select style={styles.select} value={formData.guest_id} onChange={e => setFormData({...formData, guest_id: e.target.value})}>
-                    <option value="">Select a guest</option>
-                    {mockGuests.map(g => <option key={g.guest_id} value={g.guest_id}>{g.full_name}</option>)}
-                  </select>
+              <div className="searchControl">
+                <span aria-hidden="true">Search</span>
+                <input
+                  aria-label="Search reservations"
+                  type="search"
+                  placeholder="Guest, room, status, ID"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="statusControls" aria-label="Reservation status filters">
+              {statusOptions.map((status) => (
+                <button
+                  className={filterStatus === status ? "filterButton active" : "filterButton"}
+                  key={status}
+                  type="button"
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status === "ALL" ? "All" : humanizeStatus(status)}
+                </button>
+              ))}
+            </div>
+
+            <div className="tableScroller">
+              <table className="reservationsTable">
+                <thead>
+                  <tr>
+                    <th>Reservation</th>
+                    <th>Guest</th>
+                    <th>Room</th>
+                    <th>Dates</th>
+                    <th>Nights</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredReservations.map((reservation) => {
+                    const nights = getNights(
+                      reservation.check_in_date,
+                      reservation.check_out_date,
+                    );
+                    const total = reservation.price_per_night * nights;
+
+                    return (
+                      <tr key={reservation.reservation_id}>
+                        <td>
+                          <strong>#{reservation.reservation_id}</strong>
+                          <span>Booked {formatDate(reservation.booking_date)}</span>
+                        </td>
+                        <td>
+                          <strong>{reservation.guest_name}</strong>
+                          <span>{reservation.phone}</span>
+                        </td>
+                        <td>
+                          <strong>{reservation.room_number}</strong>
+                          <span>{reservation.room_type}</span>
+                        </td>
+                        <td>
+                          <strong>{formatDate(reservation.check_in_date)}</strong>
+                          <span>to {formatDate(reservation.check_out_date)}</span>
+                        </td>
+                        <td className="numericCell">{nights}</td>
+                        <td className="numericCell">{formatMoney(total)}</td>
+                        <td>
+                          <span className={getStatusClassName(reservation.status)}>
+                            {humanizeStatus(reservation.status)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside className="sideStack" aria-label="Room availability and actions">
+            <section className="availabilityCard">
+              <div className="panelHeader compact">
+                <div>
+                  <h2>Room Availability</h2>
+                  <p>Live assignment model</p>
                 </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Room</label>
-                  <select style={styles.select} value={formData.room_id} onChange={e => setFormData({...formData, room_id: e.target.value})}>
-                    <option value="">Select a room</option>
-                    {mockRooms.filter(r => r.status === 'AVAILABLE').map(r => <option key={r.room_id} value={r.room_id}>{r.room_number} - {r.room_type} (${r.price_per_night}/night)</option>)}
-                  </select>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Check-in</label>
-                    <input type="date" style={styles.input} value={formData.check_in_date} onChange={e => setFormData({...formData, check_in_date: e.target.value})} />
+              </div>
+              <div className="roomList">
+                {mockRooms.map((room) => (
+                  <div className="roomItem" key={room.room_id}>
+                    <div>
+                      <strong>Room {room.room_number}</strong>
+                      <span>{room.room_type}</span>
+                    </div>
+                    <div>
+                      <span className={getStatusClassName(room.status)}>
+                        {humanizeStatus(room.status)}
+                      </span>
+                      <small>{formatMoney(room.price_per_night)}/night</small>
+                    </div>
                   </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Check-out</label>
-                    <input type="date" style={styles.input} value={formData.check_out_date} onChange={e => setFormData({...formData, check_out_date: e.target.value})} />
-                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="workflowCard">
+              <span className="eyebrow">Operational Path</span>
+              <h2>Pending to checked out</h2>
+              <ol>
+                <li>
+                  <span>1</span>
+                  <p>Capture guest, room, and stay dates.</p>
+                </li>
+                <li>
+                  <span>2</span>
+                  <p>Confirm reservation and reserve the assigned room.</p>
+                </li>
+                <li>
+                  <span>3</span>
+                  <p>Check in, invoice services, collect payment, and release room.</p>
+                </li>
+              </ol>
+            </section>
+          </aside>
+        </section>
+
+        {showModal && (
+          <div className="modalOverlay" role="presentation" onClick={closeModal}>
+            <div
+              aria-modal="true"
+              className="reservationModal"
+              role="dialog"
+              aria-labelledby="reservation-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="modalHeader">
+                <div>
+                  <span className="eyebrow">Create Booking</span>
+                  <h2 id="reservation-modal-title">New Reservation</h2>
                 </div>
-                <div style={styles.modalActions}>
-                  <button type="button" onClick={() => setShowModal(false)} style={styles.cancelButton}>Cancel</button>
-                  <button type="submit" style={styles.submitButton}>Create Reservation</button>
+                <button
+                  aria-label="Close reservation form"
+                  className="iconButton"
+                  type="button"
+                  onClick={closeModal}
+                >
+                  x
+                </button>
+              </div>
+
+              <form
+                className="reservationForm"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  closeModal();
+                }}
+              >
+                <label>
+                  Guest
+                  <select
+                    value={formData.guest_id}
+                    onChange={(event) => updateForm("guest_id", event.target.value)}
+                  >
+                    <option value="">Select guest profile</option>
+                    {mockGuests.map((guest) => (
+                      <option key={guest.guest_id} value={guest.guest_id}>
+                        {guest.full_name} - {guest.phone}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Room
+                  <select
+                    value={formData.room_id}
+                    onChange={(event) => updateForm("room_id", event.target.value)}
+                  >
+                    <option value="">Select available room</option>
+                    {mockRooms
+                      .filter((room) => room.status === "AVAILABLE")
+                      .map((room) => (
+                        <option key={room.room_id} value={room.room_id}>
+                          {room.room_number} - {room.room_type} -{" "}
+                          {formatMoney(room.price_per_night)}/night
+                        </option>
+                      ))}
+                  </select>
+                </label>
+
+                <div className="formColumns">
+                  <label>
+                    Check-in
+                    <input
+                      type="date"
+                      value={formData.check_in_date}
+                      onChange={(event) => updateForm("check_in_date", event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Check-out
+                    <input
+                      type="date"
+                      value={formData.check_out_date}
+                      onChange={(event) => updateForm("check_out_date", event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <label>
+                  Initial status
+                  <select
+                    value={formData.status}
+                    onChange={(event) =>
+                      updateForm("status", event.target.value as ReservationStatus)
+                    }
+                  >
+                    {statusOptions
+                      .filter((status) => status !== "ALL")
+                      .map((status) => (
+                        <option key={status} value={status}>
+                          {humanizeStatus(status)}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+
+                <div className="estimateBox">
+                  <span>Projected stay</span>
+                  <strong>{projectedNights ? `${projectedNights} nights` : "Dates pending"}</strong>
+                  <p>{projectedTotal ? formatMoney(projectedTotal) : "Select a room and dates"}</p>
+                </div>
+
+                <div className="modalActions">
+                  <button className="ghostButton" type="button" onClick={closeModal}>
+                    Cancel
+                  </button>
+                  <button className="primaryButton" type="submit">
+                    Create Reservation
+                  </button>
                 </div>
               </form>
             </div>
@@ -163,43 +554,549 @@ const Reservations = () => {
   );
 };
 
-const styles: Record<string, React.CSSProperties> = {
-  page: { padding: '32px', maxWidth: '1080px', margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' },
-  title: { fontSize: '32px', fontWeight: 300, color: '#061b31', letterSpacing: '-0.64px', margin: 0, fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  subtitle: { fontSize: '16px', fontWeight: 300, color: '#64748d', margin: '8px 0 0 0' },
-  primaryButton: { backgroundColor: '#533afd', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '4px', fontSize: '14px', fontWeight: 400, cursor: 'pointer', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  filters: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' },
-  searchBox: { display: 'flex', alignItems: 'center', backgroundColor: '#ffffff', border: '1px solid #e5edf5', borderRadius: '4px', padding: '8px 12px', minWidth: '280px' },
-  searchIcon: { marginRight: '8px', opacity: 0.5 },
-  searchInput: { border: 'none', outline: 'none', fontSize: '14px', width: '100%', color: '#061b31', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  statusFilters: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  filterButton: { backgroundColor: 'transparent', border: '1px solid #e5edf5', borderRadius: '4px', padding: '6px 12px', fontSize: '13px', color: '#64748d', cursor: 'pointer', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  filterButtonActive: { backgroundColor: '#533afd', borderColor: '#533afd', color: '#ffffff' },
-  tableCard: { backgroundColor: '#ffffff', border: '1px solid #e5edf5', borderRadius: '6px', boxShadow: 'rgba(50,50,93,0.25) 0px 30px 45px -30px, rgba(0,0,0,0.1) 0px 18px 36px -18px', overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  tableHeader: { backgroundColor: '#f8fafc', borderBottom: '1px solid #e5edf5' },
-  th: { textAlign: 'left', padding: '14px 16px', fontSize: '12px', fontWeight: 400, color: '#64748d', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  tableRow: { borderBottom: '1px solid #e5edf5' },
-  td: { padding: '16px', fontSize: '14px', color: '#061b31' },
-  guestName: { fontWeight: 400, color: '#061b31' },
-  roomBadge: { backgroundColor: 'rgba(83,58,253,0.08)', color: '#533afd', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: 400, display: 'inline-block' },
-  nightsBadge: { backgroundColor: 'rgba(50,50,93,0.08)', color: '#061b31', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: 400 },
-  statusBadge: { padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 400, display: 'inline-block' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(6,27,49,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { backgroundColor: '#ffffff', borderRadius: '6px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'auto', boxShadow: 'rgba(3,3,39,0.25) 0px 14px 21px -14px, rgba(0,0,0,0.1) 0px 8px 17px -8px' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e5edf5' },
-  modalTitle: { fontSize: '22px', fontWeight: 300, color: '#061b31', margin: 0, letterSpacing: '-0.22px', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  modalClose: { background: 'none', border: 'none', fontSize: '24px', color: '#64748d', cursor: 'pointer', padding: 0, lineHeight: 1 },
-  form: { padding: '24px' },
-  formGroup: { marginBottom: '20px' },
-  formRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
-  label: { display: 'block', fontSize: '14px', fontWeight: 400, color: '#273951', marginBottom: '8px', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  input: { width: '100%', padding: '10px 12px', border: '1px solid #e5edf5', borderRadius: '4px', fontSize: '14px', color: '#061b31', outline: 'none', boxSizing: 'border-box', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  select: { width: '100%', padding: '10px 12px', border: '1px solid #e5edf5', borderRadius: '4px', fontSize: '14px', color: '#061b31', outline: 'none', backgroundColor: '#ffffff', cursor: 'pointer', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 24px', borderTop: '1px solid #e5edf5' },
-  cancelButton: { backgroundColor: 'transparent', border: '1px solid #e5edf5', borderRadius: '4px', padding: '10px 20px', fontSize: '14px', color: '#64748d', cursor: 'pointer', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-  submitButton: { backgroundColor: '#533afd', border: 'none', borderRadius: '4px', padding: '10px 20px', fontSize: '14px', color: '#ffffff', cursor: 'pointer', fontFamily: 'sohne-var, SF Pro Display, system-ui' },
-};
+const reservationStyles = `
+  .reservationsPage {
+    max-width: 1180px;
+    margin: 0 auto;
+    color: #64748d;
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+  }
+
+  .reservationsHero {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .reservationsHero h1 {
+    max-width: 780px;
+    margin: 8px 0 12px;
+    color: #061b31;
+    font-size: 48px;
+    font-weight: 300;
+    letter-spacing: -0.96px;
+    line-height: 1.08;
+  }
+
+  .reservationsHero p {
+    max-width: 710px;
+    margin: 0;
+    color: #64748d;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.4;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    color: #533afd;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .heroActions,
+  .modalActions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .primaryButton,
+  .ghostButton,
+  .filterButton,
+  .iconButton {
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    font-weight: 400;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .primaryButton {
+    border: 1px solid #533afd;
+    background: #533afd;
+    color: #ffffff;
+    padding: 10px 16px;
+    font-size: 14px;
+    box-shadow: rgba(50,50,93,0.2) 0px 12px 20px -12px, rgba(0,0,0,0.08) 0px 6px 12px -8px;
+  }
+
+  .primaryButton:hover {
+    background: #4434d4;
+    border-color: #4434d4;
+  }
+
+  .ghostButton {
+    border: 1px solid #b9b9f9;
+    background: transparent;
+    color: #533afd;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .ghostButton:hover {
+    background: rgba(83,58,253,0.05);
+  }
+
+  .metricGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metricCard,
+  .reservationPanel,
+  .availabilityCard,
+  .workflowCard,
+  .reservationModal {
+    background: #ffffff;
+    border: 1px solid #e5edf5;
+    border-radius: 6px;
+    box-shadow: rgba(50,50,93,0.18) 0px 24px 42px -28px, rgba(0,0,0,0.08) 0px 14px 26px -18px;
+  }
+
+  .metricCard {
+    min-height: 132px;
+    padding: 20px;
+  }
+
+  .metricCard span,
+  .metricCard p,
+  .panelHeader p,
+  .reservationsTable span,
+  .roomItem span,
+  .roomItem small,
+  .estimateBox span,
+  .estimateBox p {
+    color: #64748d;
+    font-size: 13px;
+    font-weight: 300;
+  }
+
+  .metricCard strong {
+    display: block;
+    margin: 10px 0 6px;
+    color: #061b31;
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: -0.4px;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .metricCard p {
+    margin: 0;
+  }
+
+  .workspaceGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .reservationPanel,
+  .availabilityCard,
+  .workflowCard {
+    padding: 24px;
+  }
+
+  .panelHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .panelHeader.compact {
+    margin-bottom: 12px;
+  }
+
+  .panelHeader h2,
+  .workflowCard h2,
+  .modalHeader h2 {
+    margin: 0;
+    color: #061b31;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: -0.22px;
+    line-height: 1.1;
+  }
+
+  .panelHeader p {
+    margin: 6px 0 0;
+  }
+
+  .searchControl {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-width: 300px;
+    border: 1px solid #e5edf5;
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 8px 10px;
+  }
+
+  .searchControl span {
+    color: #273951;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .searchControl input,
+  .reservationForm input,
+  .reservationForm select {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    color: #061b31;
+    background: #ffffff;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .searchControl:focus-within,
+  .reservationForm label:focus-within {
+    border-color: #533afd;
+    box-shadow: 0 0 0 2px rgba(83,58,253,0.1);
+  }
+
+  .statusControls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .filterButton {
+    border: 1px solid #e5edf5;
+    background: #ffffff;
+    color: #64748d;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .filterButton.active {
+    border-color: #533afd;
+    background: #533afd;
+    color: #ffffff;
+  }
+
+  .tableScroller {
+    overflow-x: auto;
+  }
+
+  .reservationsTable {
+    width: 100%;
+    min-width: 820px;
+    border-collapse: collapse;
+  }
+
+  .reservationsTable th {
+    padding: 12px 12px;
+    border-top: 1px solid #e5edf5;
+    border-bottom: 1px solid #e5edf5;
+    color: #64748d;
+    font-size: 12px;
+    font-weight: 400;
+    text-align: left;
+  }
+
+  .reservationsTable td {
+    padding: 16px 12px;
+    border-bottom: 1px solid #e5edf5;
+    color: #061b31;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  .reservationsTable td strong,
+  .roomItem strong {
+    display: block;
+    color: #061b31;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.25;
+  }
+
+  .reservationsTable td span,
+  .roomItem span,
+  .roomItem small {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .numericCell {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .statusBadge {
+    display: inline-flex;
+    width: max-content;
+    align-items: center;
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+  }
+
+  .status-confirmed,
+  .status-available {
+    border: 1px solid rgba(21,190,83,0.4);
+    background: rgba(21,190,83,0.14);
+    color: #108c3d;
+  }
+
+  .status-pending,
+  .status-reserved {
+    border: 1px solid rgba(83,58,253,0.26);
+    background: rgba(83,58,253,0.09);
+    color: #533afd;
+  }
+
+  .status-checked-in,
+  .status-occupied {
+    border: 1px solid rgba(50,50,93,0.26);
+    background: rgba(50,50,93,0.11);
+    color: #061b31;
+  }
+
+  .status-checked-out {
+    border: 1px solid rgba(100,116,141,0.24);
+    background: rgba(100,116,141,0.1);
+    color: #64748d;
+  }
+
+  .status-cancelled,
+  .status-maintenance {
+    border: 1px solid rgba(234,34,97,0.3);
+    background: rgba(234,34,97,0.08);
+    color: #ea2261;
+  }
+
+  .sideStack {
+    display: grid;
+    gap: 24px;
+  }
+
+  .roomList {
+    display: grid;
+    gap: 10px;
+  }
+
+  .roomItem {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    border: 1px solid #e5edf5;
+    border-radius: 4px;
+    padding: 12px;
+  }
+
+  .roomItem > div:last-child {
+    display: grid;
+    justify-items: end;
+  }
+
+  .workflowCard {
+    background: #1c1e54;
+    border-color: #1c1e54;
+  }
+
+  .workflowCard .eyebrow,
+  .workflowCard h2 {
+    color: #ffffff;
+  }
+
+  .workflowCard ol {
+    display: grid;
+    gap: 14px;
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .workflowCard li {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .workflowCard li span {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .workflowCard p {
+    margin: 2px 0 0;
+    color: rgba(255,255,255,0.72);
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.4;
+  }
+
+  .modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(6,27,49,0.48);
+  }
+
+  .reservationModal {
+    width: min(560px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    box-shadow: rgba(3,3,39,0.25) 0px 14px 21px -14px, rgba(0,0,0,0.1) 0px 8px 17px -8px;
+  }
+
+  .modalHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    border-bottom: 1px solid #e5edf5;
+    padding: 22px 24px;
+  }
+
+  .iconButton {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5edf5;
+    background: #ffffff;
+    color: #64748d;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .iconButton:hover {
+    color: #533afd;
+    border-color: #b9b9f9;
+  }
+
+  .reservationForm {
+    display: grid;
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .reservationForm label {
+    display: grid;
+    gap: 8px;
+    border: 1px solid #e5edf5;
+    border-radius: 4px;
+    padding: 10px 12px;
+    color: #273951;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .formColumns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .estimateBox {
+    border: 1px dashed #362baa;
+    border-radius: 4px;
+    background: rgba(83,58,253,0.04);
+    padding: 14px;
+  }
+
+  .estimateBox strong {
+    display: block;
+    margin: 6px 0 2px;
+    color: #061b31;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: -0.22px;
+  }
+
+  .estimateBox p {
+    margin: 0;
+  }
+
+  @media (max-width: 1100px) {
+    .workspaceGrid {
+      grid-template-columns: 1fr;
+    }
+
+    .sideStack {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 860px) {
+    .reservationsHero,
+    .panelHeader {
+      display: grid;
+    }
+
+    .reservationsHero h1 {
+      font-size: 34px;
+      letter-spacing: -0.64px;
+    }
+
+    .heroActions,
+    .searchControl {
+      width: 100%;
+    }
+
+    .metricGrid,
+    .sideStack {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .reservationsPage {
+      margin: -16px;
+    }
+
+    .reservationPanel,
+    .availabilityCard,
+    .workflowCard,
+    .metricCard {
+      padding: 18px;
+    }
+
+    .formColumns {
+      grid-template-columns: 1fr;
+    }
+
+    .primaryButton,
+    .ghostButton {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+`;
 
 export default Reservations;
