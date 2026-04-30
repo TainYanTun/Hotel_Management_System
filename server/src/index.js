@@ -7,6 +7,8 @@ import authRoutes from './routes/auth.js';
 import roomsRoutes from './routes/rooms.js';
 import guestsRoutes from './routes/guests.js';
 import reservationsRoutes from './routes/reservations.js';
+import auditLogsRoutes from './routes/auditLogs.js';
+import statsRoutes from './routes/stats.js';
 
 dotenv.config();
 
@@ -19,6 +21,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomsRoutes);
 app.use('/api/guests', guestsRoutes);
 app.use('/api/reservations', reservationsRoutes);
+app.use('/api/audit-logs', auditLogsRoutes);
+app.use('/api/stats', statsRoutes);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

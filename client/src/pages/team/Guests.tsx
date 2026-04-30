@@ -17,6 +17,20 @@ const Guests: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentGuest, setCurrentGuest] = useState<Partial<Guest> | null>(null);
+  
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  
+  // Normalize role casing to handle legacy values
+  const rawRole = user.role || "Receptionist";
+  const roleMap: Record<string, string> = {
+    'ADMIN': 'Administrator',
+    'FINANCE': 'Finance Officer',
+    'MANAGER': 'Manager',
+    'RECEPTIONIST': 'Receptionist'
+  };
+  const role = roleMap[rawRole] || rawRole;
+  
+  const isViewOnly = role === 'Manager';
 
   useEffect(() => {
     fetchGuests();
@@ -37,6 +51,8 @@ const Guests: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isViewOnly) return;
+
     const method = currentGuest?.guest_id ? 'PUT' : 'POST';
     const url = currentGuest?.guest_id 
       ? `/api/guests/${currentGuest.guest_id}` 
@@ -59,6 +75,7 @@ const Guests: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
+    if (isViewOnly) return;
     if (!confirm('Are you sure you want to delete this guest?')) return;
 
     try {
@@ -79,263 +96,355 @@ const Guests: React.FC = () => {
 
   return (
     <Layout>
-      <div className="dashboard-header">
-        <div>
-          <h2 style={{ fontSize: '32px', fontWeight: 300, color: 'var(--deep-navy)' }}>Guests</h2>
-          <p style={{ color: 'var(--color-body)', fontSize: '16px', marginTop: '4px' }}>
-            Manage guest profiles and contact information
-          </p>
-        </div>
-        <button 
-          className="btn-primary" 
-          onClick={() => {
-            setCurrentGuest({});
-            setIsModalOpen(true);
-          }}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <span style={{ fontSize: '20px' }}>+</span> Add Guest
-        </button>
-      </div>
-
-      <div className="data-table-card" style={{ marginTop: '24px' }}>
-        <div style={{ marginBottom: '24px' }}>
-          <div className="form-group" style={{ marginBottom: 0, maxWidth: '400px' }}>
-            <input 
-              type="text" 
-              placeholder="Search guests by name, email or phone..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                background: '#f8f9fa',
-                border: '1px solid var(--border-default)',
-                borderRadius: '6px',
-                padding: '12px 16px'
-              }}
-            />
+      <style>{guestStyles}</style>
+      <div className="guestsPage">
+        <section className="guestsHero">
+          <div>
+            <span className="eyebrow">Relationship Management</span>
+            <h1>Manage guest profiles, contact history, and identity records.</h1>
+            <p>
+              A high-fidelity record system for maintaining deep guest relationships
+              and ensuring operational accuracy.
+            </p>
           </div>
-        </div>
+          {!isViewOnly && (
+            <div className="heroActions">
+              <button className="ghostButton" onClick={fetchGuests}>Refresh Feed</button>
+              <button 
+                className="primaryButton" 
+                onClick={() => {
+                  setCurrentGuest({});
+                  setIsModalOpen(true);
+                }}
+              >
+                + Add Guest
+              </button>
+            </div>
+          )}
+        </section>
 
-        {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-body)' }}>
-            Loading guests...
+        <section className="guestsPanel">
+          <div className="panelHeader">
+            <div>
+              <h2>Guest Directory</h2>
+              <p>{filteredGuests.length} profiles found</p>
+            </div>
+            <div className="searchControl">
+              <span>Search</span>
+              <input 
+                type="text" 
+                placeholder="Name, email, or phone..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Contact</th>
-                <th>ID / Passport</th>
-                <th>Joined</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredGuests.length > 0 ? (
-                filteredGuests.map(guest => (
-                  <tr key={guest.guest_id} className="table-row-hover">
-                    <td>
-                      <div style={{ fontWeight: 400, color: 'var(--deep-navy)' }}>{guest.full_name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-body)', marginTop: '2px' }}>ID: #{guest.guest_id}</div>
-                    </td>
-                    <td>
-                      <div>{guest.email || 'No email'}</div>
-                      <div style={{ fontSize: '13px', color: 'var(--color-body)', marginTop: '2px' }}>{guest.phone || 'No phone'}</div>
-                    </td>
-                    <td>
-                      <code style={{ 
-                        fontFamily: 'var(--font-mono)', 
-                        fontSize: '13px',
-                        background: '#f1f5f9',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                      }}>
-                        {guest.id_passport || '—'}
-                      </code>
-                    </td>
-                    <td style={{ fontFeatureSettings: '"tnum"' }}>
-                      {new Date(guest.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button 
-                        onClick={() => {
-                          setCurrentGuest(guest);
-                          setIsModalOpen(true);
-                        }}
-                        style={{ 
-                          background: 'none', 
-                          border: 'none', 
-                          color: 'var(--stripe-purple)', 
-                          cursor: 'pointer',
-                          marginRight: '12px',
-                          fontSize: '14px'
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(guest.guest_id)}
-                        style={{ 
-                          background: 'none', 
-                          border: 'none', 
-                          color: 'var(--ruby)', 
-                          cursor: 'pointer',
-                          fontSize: '14px'
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+
+          <div className="tableScroller">
+            <table className="guestsTable">
+              <thead>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--color-body)' }}>
-                    No guests found matching your search.
-                  </td>
+                  <th>Guest Profile</th>
+                  <th>Contact Information</th>
+                  <th>ID / Passport</th>
+                  <th>Relationship Date</th>
+                  {!isViewOnly && <th>Actions</th>}
                 </tr>
-              )}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={isViewOnly ? 4 : 5} className="emptyState">Loading guest records...</td></tr>
+                ) : filteredGuests.length === 0 ? (
+                  <tr><td colSpan={isViewOnly ? 4 : 5} className="emptyState">No guests found matching your search.</td></tr>
+                ) : (
+                  filteredGuests.map(guest => (
+                    <tr key={guest.guest_id}>
+                      <td>
+                        <strong>{guest.full_name}</strong>
+                        <span>ID: #{guest.guest_id}</span>
+                      </td>
+                      <td>
+                        <div className="contactInfo">
+                          <p>{guest.email || 'No email provided'}</p>
+                          <span>{guest.phone || 'No phone provided'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <code className="monoBadge">{guest.id_passport || '—'}</code>
+                      </td>
+                      <td className="numericCell">
+                        {new Date(guest.created_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </td>
+                      {!isViewOnly && (
+                        <td>
+                          <div className="actionGroup">
+                            <button 
+                              className="editBtn"
+                              onClick={() => {
+                                setCurrentGuest(guest);
+                                setIsModalOpen(true);
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className="deleteBtn"
+                              onClick={() => handleDelete(guest.guest_id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
 
-      {/* Modal */}
       {isModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(6, 27, 49, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }}>
-          <div className="card" style={{ 
-            maxWidth: '600px', 
-            padding: '40px',
-            position: 'relative',
-            animation: 'modalFadeIn 0.3s ease-out'
-          }}>
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                color: 'var(--color-body)'
-              }}
-            >
-              &times;
-            </button>
-            <h3 style={{ marginBottom: '24px', fontSize: '24px' }}>
-              {currentGuest?.guest_id ? 'Edit Guest' : 'Add New Guest'}
-            </h3>
-            <form onSubmit={handleSave}>
-              <div className="form-group">
-                <label>Full Name</label>
+        <div className="modalOverlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <div>
+                <span className="eyebrow">Relationship Form</span>
+                <h2>{currentGuest?.guest_id ? 'Edit Profile' : 'Register Guest'}</h2>
+              </div>
+              <button className="closeBtn" onClick={() => setIsModalOpen(false)}>×</button>
+            </div>
+            <form onSubmit={handleSave} className="guestForm">
+              <label>
+                Full Name
                 <input 
                   type="text" 
                   required
+                  disabled={isViewOnly}
                   value={currentGuest?.full_name || ''} 
                   onChange={e => setCurrentGuest({...currentGuest, full_name: e.target.value})}
                   placeholder="e.g. John Doe"
                 />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div className="form-group">
-                  <label>Email Address</label>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <label>
+                  Email Address
                   <input 
                     type="email" 
+                    disabled={isViewOnly}
                     value={currentGuest?.email || ''} 
                     onChange={e => setCurrentGuest({...currentGuest, email: e.target.value})}
                     placeholder="john@example.com"
                   />
-                </div>
-                <div className="form-group">
-                  <label>Phone Number</label>
+                </label>
+                <label>
+                  Phone Number
                   <input 
                     type="text" 
+                    disabled={isViewOnly}
                     value={currentGuest?.phone || ''} 
                     onChange={e => setCurrentGuest({...currentGuest, phone: e.target.value})}
                     placeholder="+1 234 567 890"
                   />
-                </div>
+                </label>
               </div>
-              <div className="form-group">
-                <label>ID / Passport Number</label>
+              <label>
+                ID / Passport Number
                 <input 
                   type="text" 
+                  disabled={isViewOnly}
                   value={currentGuest?.id_passport || ''} 
                   onChange={e => setCurrentGuest({...currentGuest, id_passport: e.target.value})}
                   placeholder="Passport or ID number"
                 />
-              </div>
-              <div className="form-group">
-                <label>Address</label>
+              </label>
+              <label>
+                Address
                 <textarea 
+                  disabled={isViewOnly}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    fontSize: '16px',
-                    fontFamily: 'inherit',
-                    border: '1px solid var(--border-default)',
+                    fontSize: '14px',
+                    border: '1px solid #e5edf5',
                     borderRadius: '4px',
                     minHeight: '80px',
-                    color: 'var(--color-heading)',
-                    fontWeight: 300
+                    color: '#0f172a',
+                    outline: 'none'
                   }}
                   value={currentGuest?.address || ''} 
                   onChange={e => setCurrentGuest({...currentGuest, address: e.target.value})}
                   placeholder="Guest's home address"
                 />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
-                <button type="button" className="btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  {currentGuest?.guest_id ? 'Update Guest' : 'Create Guest'}
-                </button>
-              </div>
+              </label>
+              {!isViewOnly && (
+                <div className="modalActions">
+                  <button type="button" className="ghostButton" onClick={() => setIsModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="primaryButton">
+                    {currentGuest?.guest_id ? 'Update Record' : 'Commit Registration'}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes modalFadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .table-row-hover {
-          transition: background-color 0.1s ease;
-        }
-        .table-row-hover:hover {
-          background-color: #f8f9fa;
-        }
-        .data-table th {
-          font-weight: 400;
-          color: var(--color-label);
-          border-bottom: 2px solid var(--border-default);
-        }
-      `}</style>
     </Layout>
   );
 };
 
 export default Guests;
+
+const guestStyles = `
+  .guestsPage {
+    max-width: 1180px;
+    margin: 0 auto;
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    color: #64748d;
+  }
+
+  .guestsHero {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .guestsHero h1 {
+    margin: 8px 0 12px;
+    color: #061b31;
+    font-size: 48px;
+    font-weight: 300;
+    letter-spacing: -0.96px;
+    line-height: 1.08;
+    max-width: 800px;
+  }
+
+  .guestsHero p {
+    max-width: 710px;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.4;
+  }
+
+  .eyebrow {
+    color: #533afd;
+    font-size: 12px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .heroActions { display: flex; gap: 12px; }
+
+  .primaryButton, .ghostButton {
+    padding: 10px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .primaryButton {
+    background: #533afd;
+    color: white;
+    border: 1px solid #533afd;
+    box-shadow: 0 4px 6px -1px rgba(83, 58, 253, 0.2);
+  }
+
+  .ghostButton {
+    background: transparent;
+    border: 1px solid #e5edf5;
+    color: #533afd;
+  }
+
+  .guestsPanel {
+    background: white;
+    border: 1px solid #e5edf5;
+    border-radius: 6px;
+    padding: 24px;
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .panelHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .panelHeader h2 { margin: 0; font-size: 22px; color: #061b31; font-weight: 300; }
+  
+  .searchControl {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid #e5edf5; padding: 8px 12px; border-radius: 4px;
+    min-width: 300px;
+  }
+
+  .searchControl input { border: none; outline: none; flex: 1; font-size: 14px; }
+
+  .guestsTable { width: 100%; border-collapse: collapse; }
+  .guestsTable th { text-align: left; padding: 12px; border-bottom: 1px solid #e5edf5; color: #64748d; font-size: 12px; font-weight: 500; }
+  .guestsTable td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #334155; }
+
+  .contactInfo p { margin: 0; font-weight: 500; color: #061b31; }
+  .contactInfo span { font-size: 13px; color: #64748d; }
+
+  .monoBadge {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #475569;
+  }
+
+  .numericCell { font-variant-numeric: tabular-nums; }
+
+  .actionGroup { display: flex; gap: 12px; align-items: center; }
+  .editBtn { background: transparent; border: none; color: #533afd; font-size: 14px; cursor: pointer; font-weight: 500; }
+  .deleteBtn {
+    background: transparent; border: none; color: #94a3b8;
+    font-size: 20px; cursor: pointer; transition: color 0.15s;
+  }
+  .deleteBtn:hover { color: #ea2261; }
+
+  .modalOverlay {
+    position: fixed; inset: 0; background: rgba(6, 27, 49, 0.5);
+    display: grid; place-items: center; z-index: 1000; padding: 24px;
+  }
+
+  .modalCard {
+    background: white; border-radius: 8px; width: min(520px, 100%);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .modalHeader {
+    padding: 24px; border-bottom: 1px solid #e5edf5;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+
+  .closeBtn { background: transparent; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; }
+  
+  .guestForm { padding: 24px; display: grid; gap: 16px; }
+  .guestForm label { display: grid; gap: 8px; font-size: 13px; color: #475569; }
+  .guestForm input, .guestForm textarea {
+    padding: 10px 12px; border: 1px solid #e5edf5; border-radius: 4px;
+    font-size: 14px; color: #0f172a; outline: none;
+  }
+  .guestForm input:focus, .guestForm textarea:focus { border-color: #533afd; box-shadow: 0 0 0 2px rgba(83, 58, 253, 0.1); }
+  
+  .modalActions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+
+  .emptyState { text-align: center; padding: 48px !important; color: #94a3b8; }
+`;

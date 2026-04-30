@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../../db/index.js';
+import { logAction } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -30,7 +31,9 @@ router.post('/', async (req, res) => {
       [room_number, room_type, price_per_night, status || 'AVAILABLE']
     );
     
-    res.status(201).json(result.rows[0]);
+    const room = result.rows[0];
+    await logAction(null, 'Created new room', 'room', room.room_id, `Room Number: ${room_number}, Type: ${room_type}`);
+    res.status(201).json(room);
   } catch (error) {
     console.error('Error adding room:', error);
     res.status(500).json({ message: 'Error adding room' });

@@ -128,6 +128,22 @@ const Reservations = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  
+  // Normalize role casing to handle legacy values
+  const rawRole = user.role || "Receptionist";
+  const roleMap: Record<string, string> = {
+    'ADMIN': 'Administrator',
+    'FINANCE': 'Finance Officer',
+    'MANAGER': 'Manager',
+    'RECEPTIONIST': 'Receptionist'
+  };
+  const role = roleMap[rawRole] || rawRole;
+
+  const isAdmin = role === 'Administrator';
+  const isReceptionist = role === 'Receptionist';
+  const isManager = role === 'Manager';
+
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -251,14 +267,16 @@ const Reservations = () => {
               reservation flow, guest details, room readiness, and upcoming stays.
             </p>
           </div>
-          <div className="heroActions">
-            <button className="ghostButton" type="button" onClick={() => fetchAllData()}>
-              Refresh Feed
-            </button>
-            <button className="primaryButton" type="button" onClick={() => setShowModal(true)}>
-              New Reservation
-            </button>
-          </div>
+          {!isManager && (
+            <div className="heroActions">
+              <button className="ghostButton" type="button" onClick={() => fetchAllData()}>
+                Refresh Feed
+              </button>
+              <button className="primaryButton" type="button" onClick={() => setShowModal(true)}>
+                New Reservation
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="workflowCard horizontal">

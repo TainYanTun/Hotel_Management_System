@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../../db/index.js';
+import { logAction } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -45,7 +46,9 @@ router.post('/', async (req, res) => {
       'INSERT INTO reservations (guest_id, room_id, check_in_date, check_out_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [guest_id, room_id, check_in_date, check_out_date, status || 'PENDING']
     );
-    res.status(201).json(result.rows[0]);
+    const resData = result.rows[0];
+    await logAction(null, 'Created reservation', 'reservation', resData.reservation_id, `Guest ID: ${guest_id}, Room ID: ${room_id}`);
+    res.status(201).json(resData);
   } catch (err) {
     console.error('Error creating reservation:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -65,7 +68,9 @@ router.patch('/:id/status', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
-    res.json(result.rows[0]);
+    const resData = result.rows[0];
+    await logAction(null, `Updated reservation status to ${status}`, 'reservation', id, `New status: ${status}`);
+    res.json(resData);
   } catch (err) {
     console.error('Error updating reservation status:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -80,6 +85,7 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
+    await logAction(null, 'Deleted reservation', 'reservation', id, `Reservation ID ${id} removed`);
     res.json({ message: 'Reservation deleted successfully' });
   } catch (err) {
     console.error('Error deleting reservation:', err);

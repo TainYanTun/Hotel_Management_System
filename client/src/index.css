@@ -27,9 +27,9 @@
   --border-soft-purple: #d6d9fc;
 
   /* Shadows */
-  --shadow-blue: rgba(50, 50, 93, 0.25);
-  --shadow-black: rgba(0, 0, 0, 0.1);
-  --shadow-ambient: rgba(23, 23, 23, 0.08);
+  --shadow-elevated: rgba(50, 50, 93, 0.25) 0px 30px 45px -30px, rgba(0, 0, 0, 0.1) 0px 18px 36px -18px;
+  --shadow-standard: rgba(23, 23, 23, 0.08) 0px 15px 35px 0px;
+  --shadow-ambient: rgba(23, 23, 23, 0.06) 0px 3px 6px;
 
   /* Typography */
   --font-sans: 'sohne-var', 'SF Pro Display', system-ui, -apple-system, sans-serif;
@@ -71,6 +71,52 @@ h2 {
   font-size: 32px;
   line-height: 1.1;
   letter-spacing: -0.64px;
+}
+
+h3 {
+  font-size: 26px;
+  line-height: 1.12;
+  letter-spacing: -0.26px;
+}
+
+h4 {
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.22px;
+}
+
+.text-display-large {
+  font-size: 48px;
+  line-height: 1.15;
+  letter-spacing: -0.96px;
+}
+
+.text-body-large {
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+
+.text-caption {
+  font-size: 13px;
+  line-height: normal;
+  letter-spacing: normal;
+}
+
+.text-caption-small {
+  font-size: 12px;
+  line-height: 1.45;
+  letter-spacing: normal;
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: normal;
+}
+
+.text-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 a {
@@ -131,7 +177,7 @@ button {
   border: 1px solid var(--border-default);
   border-radius: 5px;
   padding: 48px;
-  box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px, rgba(0, 0, 0, 0.1) 0px 18px 36px -18px;
+  box-shadow: var(--shadow-elevated);
   width: 100%;
   max-width: 480px;
 }
@@ -344,7 +390,7 @@ button {
   border: 1px solid var(--border-default);
   border-radius: 5px;
   padding: 32px;
-  box-shadow: rgba(50, 50, 93, 0.1) 0px 20px 40px -20px, rgba(0, 0, 0, 0.05) 0px 10px 20px -10px;
+  box-shadow: var(--shadow-elevated);
 }
 
 .data-table {

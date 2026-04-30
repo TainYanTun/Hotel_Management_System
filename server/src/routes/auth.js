@@ -23,7 +23,7 @@ router.post('/register', async (req, res) => {
     // Insert user
     const newUser = await query(
       'INSERT INTO users (username, password_hash, full_name, role) VALUES ($1, $2, $3, $4) RETURNING user_id, username, role, full_name',
-      [username, passwordHash, full_name, role || 'RECEPTIONIST']
+      [username, passwordHash, full_name, role || 'Receptionist']
     );
 
     // Generate JWT

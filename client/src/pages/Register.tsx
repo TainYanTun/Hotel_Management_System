@@ -7,7 +7,7 @@ const Register = () => {
     username: '', 
     password: '', 
     full_name: '', 
-    role: 'RECEPTIONIST' 
+    role: 'Receptionist' 
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -115,10 +115,10 @@ const Register = () => {
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-default)', background: 'white' }}
             >
-              <option value="RECEPTIONIST">Receptionist</option>
-              <option value="MANAGER">Manager</option>
-              <option value="FINANCE">Finance</option>
-              <option value="ADMIN">Admin</option>
+              <option value="Receptionist">Receptionist</option>
+              <option value="Manager">Manager</option>
+              <option value="Finance Officer">Finance Officer</option>
+              <option value="Administrator">Administrator</option>
             </select>
           </div>
           

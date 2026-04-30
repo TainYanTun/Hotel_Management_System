@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../../db/index.js';
+import { logAction } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -42,7 +43,9 @@ router.post('/', async (req, res) => {
       'INSERT INTO guests (full_name, phone, email, address, id_passport) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [full_name, phone, email, address, id_passport]
     );
-    res.status(201).json(result.rows[0]);
+    const guest = result.rows[0];
+    await logAction(null, 'Added new guest', 'guest', guest.guest_id, `Name: ${full_name}`);
+    res.status(201).json(guest);
   } catch (err) {
     console.error('Error creating guest:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -83,6 +86,7 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Guest not found' });
     }
+    await logAction(null, 'Deleted guest', 'guest', id, `Guest ID ${id} removed`);
     res.json({ message: 'Guest deleted successfully' });
   } catch (err) {
     console.error('Error deleting guest:', err);
