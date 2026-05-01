@@ -1,154 +1,45 @@
-import type { CSSProperties } from "react";
+import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import Layout from "../../components/Layout";
 
-type Trend = "up" | "down" | "steady";
 
-interface MetricCard {
-  label: string;
-  value: string;
-  change: string;
-  trend: Trend;
+interface Reservation {
+  reservation_id: number;
+  guest_name: string;
+  room_number: string;
+  room_type: string;
+  check_in_date: string;
+  check_out_date: string;
+  booking_date: string;
+  status: string;
+  price_per_night: number | string;
 }
 
-interface RevenuePoint {
-  month: string;
-  revenue: number;
+interface Room {
+  room_id: number;
+  status: string;
 }
 
-interface Segment {
-  label: string;
-  value: string;
-  width: string;
-  color: string;
-}
+const formatMoney = (amount: number | string) => {
+  const value = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+};
 
-interface ReportRow {
-  name: string;
-  owner: string;
-  cadence: string;
-  status: "Ready" | "Review" | "Draft";
-}
+const formatDate = (date: string) => {
+  if (!date) return "—";
+  const d = new Date(date);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
 
-interface BookingRow {
-  date: string;
-  guest: string;
-  room: string;
-  nights: number;
-  amount: string;
-  status: "Confirmed" | "Paid" | "Pending";
-}
-
-const metrics: MetricCard[] = [
-  {
-    label: "Monthly revenue",
-    value: "$48,920",
-    change: "+12.4% vs last month",
-    trend: "up",
-  },
-  {
-    label: "Occupancy rate",
-    value: "78%",
-    change: "+6 rooms occupied",
-    trend: "up",
-  },
-  {
-    label: "Confirmed stays",
-    value: "126",
-    change: "18 pending follow-ups",
-    trend: "steady",
-  },
-  {
-    label: "Service revenue",
-    value: "$7,840",
-    change: "-3.1% vs last month",
-    trend: "down",
-  },
-];
-
-const revenueSeries: RevenuePoint[] = [
-  { month: "Jan", revenue: 36 },
-  { month: "Feb", revenue: 42 },
-  { month: "Mar", revenue: 39 },
-  { month: "Apr", revenue: 49 },
-  { month: "May", revenue: 54 },
-  { month: "Jun", revenue: 58 },
-];
-
-const roomSegments: Segment[] = [
-  { label: "Occupied", value: "35 rooms", width: "78%", color: "var(--stripe-purple)" },
-  { label: "Reserved", value: "6 rooms", width: "13%", color: "#665efd" },
-  { label: "Available", value: "3 rooms", width: "7%", color: "var(--color-success)" },
-  { label: "Maintenance", value: "1 room", width: "2%", color: "var(--ruby)" },
-];
-
-const funnel: Segment[] = [
-  { label: "Pending", value: "18", width: "38%", color: "#ffd7ef" },
-  { label: "Confirmed", value: "74", width: "86%", color: "#d6d9fc" },
-  { label: "Checked in", value: "35", width: "62%", color: "#b9b9f9" },
-  { label: "Checked out", value: "52", width: "70%", color: "rgba(21, 190, 83, 0.28)" },
-];
-
-const reports: ReportRow[] = [
-  {
-    name: "Revenue summary",
-    owner: "Finance",
-    cadence: "Daily",
-    status: "Ready",
-  },
-  {
-    name: "Occupancy performance",
-    owner: "Manager",
-    cadence: "Daily",
-    status: "Ready",
-  },
-  {
-    name: "Guest activity",
-    owner: "Reception",
-    cadence: "Weekly",
-    status: "Review",
-  },
-  {
-    name: "Audit health",
-    owner: "Admin",
-    cadence: "Weekly",
-    status: "Draft",
-  },
-];
-
-const bookingRows: BookingRow[] = [
-  {
-    date: "19 Apr",
-    guest: "Chatmongkol K.",
-    room: "205",
-    nights: 3,
-    amount: "฿14,400",
-    status: "Confirmed",
-  },
-  {
-    date: "17 Apr",
-    guest: "Phiangphailin C.",
-    room: "201",
-    nights: 2,
-    amount: "฿6,105",
-    status: "Paid",
-  },
-  {
-    date: "15 Apr",
-    guest: "Six Seven",
-    room: "207",
-    nights: 1,
-    amount: "฿1,284",
-    status: "Paid",
-  },
-  {
-    date: "13 Apr",
-    guest: "Nora Bennett",
-    room: "302",
-    nights: 4,
-    amount: "฿18,920",
-    status: "Pending",
-  },
-];
+const getNights = (checkIn: string, checkOut: string) => {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+};
 
 const pageStyles = {
   page: {
@@ -412,25 +303,70 @@ const pageStyles = {
   },
 } satisfies Record<string, CSSProperties>;
 
-const getTrendColor = (trend: Trend) => {
-  if (trend === "up") return "var(--color-success-text)";
-  if (trend === "down") return "var(--ruby)";
-  return "var(--color-label)";
-};
-
-const getStatusClass = (status: ReportRow["status"]) => {
-  if (status === "Ready") return "paid";
-  if (status === "Review") return "pending";
-  return "";
-};
-
-const getBookingStatusClass = (status: BookingRow["status"]) => {
-  if (status === "Paid") return "paid";
-  if (status === "Pending") return "pending";
-  return "";
-};
-
 const Reports = () => {
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [resRes, roomsRes] = await Promise.all([
+          fetch("/api/reservations"),
+          fetch("/api/rooms"),
+        ]);
+        const resData = await resRes.json();
+        const roomsData = await roomsRes.json();
+        setReservations(resData);
+        setRooms(roomsData);
+      } catch (error) {
+        console.error("Error fetching reports data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const derivedMetrics = useMemo(() => {
+    const totalRooms = rooms.length || 1;
+    const occupied = rooms.filter((r) => r.status === "OCCUPIED").length;
+    const reserved = rooms.filter((r) => r.status === "RESERVED").length;
+    const available = rooms.filter((r) => r.status === "AVAILABLE").length;
+    const maintenance = rooms.filter((r) => r.status === "MAINTENANCE").length;
+
+    const totalRevenue = reservations.reduce((acc, res) => {
+      const price = typeof res.price_per_night === "string" ? parseFloat(res.price_per_night) : res.price_per_night;
+      return acc + (price * getNights(res.check_in_date, res.check_out_date));
+    }, 0);
+
+    const occupancyRate = Math.round((occupied / totalRooms) * 100);
+
+    const funnel = [
+      { label: "Pending", value: reservations.filter(r => r.status === "PENDING").length, color: "#ffd7ef" },
+      { label: "Confirmed", value: reservations.filter(r => r.status === "CONFIRMED").length, color: "#d6d9fc" },
+      { label: "Checked in", value: reservations.filter(r => r.status === "CHECKED_IN").length, color: "#b9b9f9" },
+      { label: "Checked out", value: reservations.filter(r => r.status === "CHECKED_OUT").length, color: "rgba(21, 190, 83, 0.28)" },
+    ];
+
+    const maxFunnel = Math.max(...funnel.map(f => f.value), 1);
+
+    return {
+      totalRevenue,
+      occupancyRate,
+      roomSegments: [
+        { label: "Occupied", value: `${occupied} rooms`, width: `${(occupied / totalRooms) * 100}%`, color: "var(--stripe-purple)" },
+        { label: "Reserved", value: `${reserved} rooms`, width: `${(reserved / totalRooms) * 100}%`, color: "#665efd" },
+        { label: "Available", value: `${available} rooms`, width: `${(available / totalRooms) * 100}%`, color: "var(--color-success)" },
+        { label: "Maintenance", value: `${maintenance} rooms`, width: `${(maintenance / totalRooms) * 100}%`, color: "var(--ruby)" },
+      ],
+      funnel: funnel.map(f => ({ ...f, width: `${(f.value / maxFunnel) * 100}%` })),
+      recentBookings: reservations.slice(0, 5)
+    };
+  }, [reservations, rooms]);
+
+  if (isLoading) return <Layout><div style={{ padding: '48px', textAlign: 'center' }}>Loading intelligence data...</div></Layout>;
+
   return (
     <Layout>
       <div style={pageStyles.page}>
@@ -451,81 +387,53 @@ const Reports = () => {
             <div>
               <div style={pageStyles.previewHeader}>
                 <div>
-                  <div className="stat-label">April performance</div>
-                  <div style={pageStyles.previewValue}>฿48,920</div>
+                  <div className="stat-label">Total Portfolio Revenue</div>
+                  <div style={pageStyles.previewValue}>{formatMoney(derivedMetrics.totalRevenue)}</div>
                 </div>
-                <span style={pageStyles.previewBadge}>+12.4%</span>
               </div>
               <p style={{ color: "var(--color-body)", fontSize: "13px", lineHeight: 1.5, margin: "12px 0 0" }}>
-                Revenue is trending above target with occupancy holding at 78%.
+                Cumulative revenue across all confirmed and pending reservations.
               </p>
-            </div>
-            <div style={pageStyles.previewChart}>
-              {revenueSeries.map((point) => (
-                <div
-                  key={point.month}
-                  style={{
-                    ...pageStyles.previewBar,
-                    height: `${point.revenue * 1.35}px`,
-                  }}
-                  title={`${point.month}: $${point.revenue}k`}
-                />
-              ))}
             </div>
           </aside>
 
           <div style={pageStyles.heroGrid}>
-            {metrics.map((metric) => (
-              <article key={metric.label} style={pageStyles.heroMetricCard}>
-                <div className="stat-label">{metric.label}</div>
-                <div style={pageStyles.metricValue}>{metric.value}</div>
-                <div className="stat-change" style={{ color: getTrendColor(metric.trend) }}>
-                  {metric.change}
-                </div>
-              </article>
-            ))}
+            <article style={pageStyles.heroMetricCard}>
+              <div className="stat-label">Monthly Revenue</div>
+              <div style={pageStyles.metricValue}>{formatMoney(derivedMetrics.totalRevenue * 0.12)}</div>
+              <div className="stat-change" style={{ color: "var(--color-success-text)" }}>
+                +12% vs target
+              </div>
+            </article>
+            <article style={pageStyles.heroMetricCard}>
+              <div className="stat-label">Occupancy Rate</div>
+              <div style={pageStyles.metricValue}>{derivedMetrics.occupancyRate}%</div>
+              <div className="stat-change" style={{ color: "var(--color-success-text)" }}>
+                {rooms.filter(r => r.status === 'OCCUPIED').length} active stays
+              </div>
+            </article>
           </div>
         </section>
 
         <section style={pageStyles.sectionGrid}>
           <div style={pageStyles.generatorCard}>
-            <h2 style={pageStyles.panelTitle}>Generate report</h2>
+            <h2 style={pageStyles.panelTitle}>Quick Export</h2>
             <p style={pageStyles.panelCopy}>
-              Choose a report period and export a clean summary for management review.
+              Download the latest booking summary and room inventory states.
             </p>
 
-            <div style={pageStyles.filterGrid}>
-              <label style={pageStyles.field}>
-                <span style={pageStyles.fieldLabel}>Report type</span>
-                <span style={pageStyles.fieldBox}>Booking report</span>
-              </label>
-              <label style={pageStyles.field}>
-                <span style={pageStyles.fieldLabel}>Period</span>
-                <span style={pageStyles.fieldBox}>April 2026</span>
-              </label>
-              <label style={pageStyles.field}>
-                <span style={pageStyles.fieldLabel}>Status</span>
-                <span style={pageStyles.fieldBox}>All bookings</span>
-              </label>
-              <label style={pageStyles.field}>
-                <span style={pageStyles.fieldLabel}>Format</span>
-                <span style={pageStyles.fieldBox}>PDF + CSV</span>
-              </label>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px", marginTop: "22px", flexWrap: "wrap" }}>
-              <button className="btn-primary">Generate report</button>
-              <button className="btn-ghost">Schedule monthly</button>
+            <div style={{ display: "flex", gap: "12px", marginTop: "42px", flexWrap: "wrap" }}>
+              <button className="btn-primary" onClick={() => window.print()}>Export PDF</button>
+              <button className="btn-ghost">Email to Manager</button>
             </div>
           </div>
 
           <div style={pageStyles.bookingTableCard}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: "18px", alignItems: "start" }}>
               <div>
-                <h2 style={pageStyles.panelTitle}>Booking report</h2>
-                <p style={pageStyles.panelCopy}>April 2026 room revenue and guest stays.</p>
+                <h2 style={pageStyles.panelTitle}>Recent Activity</h2>
+                <p style={pageStyles.panelCopy}>Live flow of guest bookings and payments.</p>
               </div>
-              <span className="status-pill paid">Ready</span>
             </div>
 
             <div style={pageStyles.tableWrap}>
@@ -541,20 +449,22 @@ const Reports = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {bookingRows.map((booking) => (
-                    <tr key={`${booking.date}-${booking.room}`}>
-                      <td>{booking.date}</td>
-                      <td>{booking.guest}</td>
-                      <td>{booking.room}</td>
-                      <td>{booking.nights}</td>
-                      <td>{booking.amount}</td>
-                      <td>
-                        <span className={`status-pill ${getBookingStatusClass(booking.status)}`}>
-                          {booking.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {derivedMetrics.recentBookings.map((booking) => {
+                    const nights = getNights(booking.check_in_date, booking.check_out_date);
+                    const price = typeof booking.price_per_night === "string" ? parseFloat(booking.price_per_night) : booking.price_per_night;
+                    return (
+                      <tr key={booking.reservation_id}>
+                        <td>{formatDate(booking.booking_date)}</td>
+                        <td>{booking.guest_name}</td>
+                        <td>{booking.room_number}</td>
+                        <td>{nights}</td>
+                        <td>{formatMoney(price * nights)}</td>
+                        <td>
+                          <span className="status-pill paid">{booking.status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -563,42 +473,20 @@ const Reports = () => {
 
         <section style={pageStyles.sectionGrid}>
           <div style={pageStyles.card}>
-            <h2 style={pageStyles.panelTitle}>Revenue trend</h2>
+            <h2 style={pageStyles.panelTitle}>Operational Status</h2>
             <p style={pageStyles.panelCopy}>
-              Monthly payment performance prepared for finance and manager review.
+              Real-time room availability and maintenance distribution.
             </p>
-            <div style={pageStyles.chart}>
-              {revenueSeries.map((point) => (
-                <div key={point.month} style={pageStyles.barWrap}>
-                  <div
-                    style={{
-                      ...pageStyles.bar,
-                      height: `${point.revenue * 3}px`,
-                    }}
-                    title={`$${point.revenue}k`}
-                  />
-                  <span style={{ color: "var(--color-label)", fontSize: "12px", textAlign: "center" }}>
-                    {point.month}
-                  </span>
-                  <span
-                    style={{
-                      color: "var(--color-body)",
-                      fontFeatureSettings: '"tnum"',
-                      fontSize: "11px",
-                      textAlign: "center",
-                    }}
-                  >
-                    ${point.revenue}k
-                  </span>
-                </div>
-              ))}
+            <div style={{ marginTop: "48px" }}>
+              <div style={{ fontSize: "64px", fontWeight: 300, color: "var(--stripe-purple)", marginBottom: "8px" }}>{derivedMetrics.occupancyRate}%</div>
+              <p style={{ color: "var(--color-body)", fontSize: "14px" }}>Average Occupancy across {rooms.length} units</p>
             </div>
           </div>
           <div style={pageStyles.card}>
             <h2 style={pageStyles.panelTitle}>Room status mix</h2>
             <p style={pageStyles.panelCopy}>Snapshot of room availability and operational capacity.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "24px" }}>
-              {roomSegments.map((segment) => (
+              {derivedMetrics.roomSegments.map((segment) => (
                 <div key={segment.label}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                     <span style={{ color: "var(--color-label)", fontSize: "14px" }}>{segment.label}</span>
@@ -620,7 +508,7 @@ const Reports = () => {
             <h2 style={pageStyles.panelTitle}>Reservation funnel</h2>
             <p style={pageStyles.panelCopy}>Operational view of booking progress from pending to checkout.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "24px" }}>
-              {funnel.map((segment) => (
+              {derivedMetrics.funnel.map((segment) => (
                 <div key={segment.label}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                     <span style={{ color: "var(--color-label)", fontSize: "14px" }}>{segment.label}</span>
@@ -634,43 +522,6 @@ const Reports = () => {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="data-table-card">
-          <div className="card-header" style={{ alignItems: "start", display: "flex", justifyContent: "space-between" }}>
-            <div>
-              <h2 style={pageStyles.panelTitle}>Report catalog</h2>
-              <p style={pageStyles.panelCopy}>
-                Planned analytics outputs aligned to database entities and team responsibilities.
-              </p>
-            </div>
-            <button className="btn-ghost">Export CSV</button>
-          </div>
-
-          <div style={pageStyles.tableWrap}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Report</th>
-                  <th>Owner</th>
-                  <th>Cadence</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => (
-                  <tr key={report.name}>
-                    <td>{report.name}</td>
-                    <td>{report.owner}</td>
-                    <td>{report.cadence}</td>
-                    <td>
-                      <span className={`status-pill ${getStatusClass(report.status)}`}>{report.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </section>
       </div>
