@@ -140,8 +140,6 @@ const Reservations = () => {
   };
   const role = roleMap[rawRole] || rawRole;
 
-  const isAdmin = role === 'Administrator';
-  const isReceptionist = role === 'Receptionist';
   const isManager = role === 'Manager';
 
   useEffect(() => {
@@ -224,10 +222,13 @@ const Reservations = () => {
       0,
     );
     
-    const todayStr = new Date().toISOString().split('T')[0];
-    const arrivalsToday = reservations.filter(
-      (reservation) => reservation.check_in_date.split('T')[0] === todayStr,
-    ).length;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    
+    const arrivalsToday = reservations.filter((reservation) => {
+      const arrivalDate = reservation.check_in_date.split('T')[0];
+      return arrivalDate === todayStr;
+    }).length;
     const availableRooms = rooms.filter((room) => room.status === "AVAILABLE").length;
 
     return [

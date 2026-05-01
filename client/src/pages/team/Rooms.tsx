@@ -76,7 +76,6 @@ const Rooms = () => {
   const role = roleMap[rawRole] || rawRole;
 
   const isAdmin = role === 'Administrator';
-  const isReceptionist = role === 'Receptionist';
   const isManager = role === 'Manager';
 
   useEffect(() => {

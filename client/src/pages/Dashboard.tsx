@@ -21,6 +21,7 @@ type RecentBooking = {
 
 const Dashboard = () => {
   const [data, setData] = useState<{ metrics: DashboardMetrics; recentBookings: RecentBooking[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   
@@ -42,10 +43,13 @@ const Dashboard = () => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/stats/overview");
+      if (!response.ok) throw new Error("Connection Timeout");
       const result = await response.json();
       setData(result);
+      setError(null);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
+      setError("Service Interruption: We're having trouble connecting to our database services. Our engineers have been alerted. Please try again in a few moments.");
     } finally {
       setIsLoading(false);
     }
@@ -62,6 +66,15 @@ const Dashboard = () => {
     <Layout>
       <style>{dashboardStyles}</style>
       <div className="dashboardPage">
+        {error && (
+          <div className="errorBanner">
+            <div className="errorContent">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>{error}</span>
+            </div>
+            <button className="retryBtn" onClick={fetchDashboardData}>Retry Connection</button>
+          </div>
+        )}
         <section className="dashboardHero">
           <div className="heroContent">
             <span className="eyebrow">Enterprise Hub</span>
@@ -401,6 +414,47 @@ const dashboardStyles = `
 
   @media (max-width: 768px) {
     .metricsShowcase { grid-template-columns: 1fr; }
+  }
+
+  .errorBanner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #991b1b;
+    font-size: 14px;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .errorContent {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .retryBtn {
+    background: #991b1b;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .retryBtn:hover {
+    background: #7f1d1d;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 `;
 
