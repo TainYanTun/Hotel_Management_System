@@ -133,13 +133,15 @@ Our most recent FTR (Audit #3) focused on the **Role Normalization** and **Audit
 | **D01** | `App.tsx` | Inconsistent role strings (ADMIN vs Administrator) causes route lockouts. | **Critical** | Fixed |
 | **D02** | `Sidebar.tsx` | Filter logic fails if role casing doesn't match database output. | **Major** | Fixed |
 | **D03** | `logger.js` | Log entries missing `IP_Address` and `SessionID` for non-repudiation. | **Minor** | Fixed |
-| **D04** | `Dashboard.tsx` | Quick action buttons visible to Managers despite "View Only" constraint. | **Major** | Fixed |
+| **D04** | `Reservations.tsx` | UI lacks live constraint feedback, leading to silent booking overlap failures. | **Major** | Fixed |
+| **D05** | `Reservations.tsx` | Date comparison logic fails due to Javascript timezone shifts, causing incorrect overlap detection. | **Critical** | Fixed |
+| **D06** | `vercel.json` | Serverless deployment fails with 404/500 errors due to misconfigured API routing and static path resolution. | **Critical** | Fixed |
 
 #### FTR Summary Report
 - **Consensus Decision:** REWORK REQUIRED
-- **Consensus Description:** The review identified critical defects in user navigation and compliance logging. The producer is required to normalize role strings and enrich log metadata before final acceptance.
+- **Consensus Description:** The review identified critical defects in user navigation, reservation overlap logic (Timezone shifts), and production deployment architecture. The producer was required to normalize date objects, implement live UI constraints, and reconfigure the Vercel deployment pipeline before final acceptance.
 - **Verification:** All defects were verified as "Fixed" by the QA reviewer on May 1, 2026.
-- **Final Verdict:** ACCEPTED (Supported by GitHub Issue #13)
+- **Final Verdict:** ACCEPTED (Supported by GitHub Issue #13 & #14)
 
 ---
 
@@ -194,7 +196,15 @@ We implemented humanized error messages for system failures to ensure a premium 
 const errorMessage = "Service Interruption: We're having trouble connecting to our database services. Our engineers have been alerted. Please try again in a few moments.";
 showToast(errorMessage, { type: 'error' });
 ```
-This error is intercepted by a global handler and transformed into a visually polished alert message in the UI, masking technical details (like HTTP 500 errors) to ensure a seamless and non-technical experience for the end user. <br>
+This error is intercepted by a global handler and transformed into a visually polished alert message in the UI, masking technical details (like HTTP 500 errors) to ensure a seamless and non-technical experience for the end user.
+
+#### Backend Database Constraint Interception
+To prevent silent failures during operation, the UI is directly wired into the Neon PostgreSQL constraint engine. If the database rejects an operation (e.g., overlapping dates or unique guest constraint violations), the Express backend catches the rejection and forwards the exact error to the React frontend. The frontend then dynamically disables the submission action and renders a Stripe-inspired, Ruby-tinted (`#ea2261`) alert, bridging the gap between deep data integrity and frontend UX.
+
+#### Production Deployment Architecture (Unified Monorepo)
+For deployment stability, the system was configured for a **Unified Monorepo Deployment** via Vercel. 
+- **Serverless API:** The Express backend was refactored from a traditional listener (`app.listen`) to an exported module (`export default app`). This allows Vercel's Node runtime to execute API routes as on-demand Serverless Functions.
+- **Routing:** A custom `vercel.json` config intercepts all `/api/*` requests and maps them to the serverless function, while allowing Vercel's Edge Network to serve the compiled React static files (`client/dist`). This eliminated 404/500 deployment crashes and ensured high availability. <br>
 **Evidence of Resilience:**
 <img src="assets/error_message.png" height="150">
 
