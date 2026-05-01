@@ -32,14 +32,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Hotel Management API is running' });
 });
 
-// Serve static files from the React app
-const clientBuildPath = path.join(__dirname, '../../client/dist');
-app.use(express.static(clientBuildPath));
+if (!process.env.VERCEL) {
+  // Serve static files from the React app
+  const clientBuildPath = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientBuildPath));
 
-// All other GET requests not handled before will return the React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(clientBuildPath, 'index.html'));
-});
+  // All other GET requests not handled before will return the React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+} else {
+  // In Vercel, if an API route isn't found, return a JSON 404 instead of HTML
+  app.use((req, res) => {
+    res.status(404).json({ error: "API Route Not Found" });
+  });
+}
 
 // Only listen if not running in Vercel serverless environment
 if (process.env.NODE_ENV !== 'production' || process.env.LOCAL_DEV) {
