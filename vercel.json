@@ -1,9 +1,19 @@
 {
   "outputDirectory": "client/dist",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build"
+    },
+    {
+      "src": "server/src/index.js",
+      "use": "@vercel/node"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://hotel-management-system-backend.vercel.app/api/$1"
+      "destination": "/server/src/index.js"
     },
     {
       "source": "/(.*)",
