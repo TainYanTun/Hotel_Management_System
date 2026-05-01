@@ -274,13 +274,13 @@ const dashboardStyles = `
   .metricsShowcase {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    gap: 16px;
   }
 
   .featureMetric {
     background: #1c1e54;
-    padding: 32px;
-    border-radius: 12px;
+    padding: 24px;
+    border-radius: 8px;
     color: white;
     display: flex;
     flex-direction: column;
@@ -288,14 +288,14 @@ const dashboardStyles = `
   }
 
   .featureMetric .eyebrow { color: rgba(255,255,255,0.6); }
-  .featureMetric strong { font-size: 64px; font-weight: 300; margin: 12px 0; display: block; line-height: 1; }
-  .featureMetric p { margin: 0; color: rgba(255,255,255,0.8); font-size: 16px; font-weight: 300; }
+  .featureMetric strong { font-size: 48px; font-weight: 300; margin: 8px 0; display: block; line-height: 1; }
+  .featureMetric p { margin: 0; color: rgba(255,255,255,0.8); font-size: 15px; font-weight: 300; }
 
   .progressBar {
-    height: 6px;
+    height: 4px;
     background: rgba(255,255,255,0.1);
     border-radius: 100px;
-    margin-top: 24px;
+    margin-top: 20px;
     overflow: hidden;
   }
 
@@ -309,28 +309,28 @@ const dashboardStyles = `
   .subMetrics {
     display: grid;
     grid-template-rows: 1fr 1fr;
-    gap: 24px;
+    gap: 16px;
   }
 
   .miniMetric {
     background: white;
     border: 1px solid #e2e8f0;
-    padding: 24px;
-    border-radius: 12px;
+    padding: 16px 20px;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   }
 
-  .miniMetric span { font-size: 14px; color: #64748d; margin-bottom: 8px; }
-  .miniMetric strong { font-size: 32px; font-weight: 400; color: #0f172a; }
+  .miniMetric span { font-size: 13px; color: #64748d; margin-bottom: 4px; }
+  .miniMetric strong { font-size: 24px; font-weight: 400; color: #0f172a; }
 
   .bookingsPanel {
     background: white;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 32px;
+    border-radius: 8px;
+    padding: 24px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
   }
 
@@ -338,36 +338,36 @@ const dashboardStyles = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
 
-  .panelHeader h2 { margin: 0; font-size: 20px; font-weight: 400; color: #0f172a; }
-  .textLink { font-size: 14px; color: #533afd; text-decoration: none; font-weight: 500; }
+  .panelHeader h2 { margin: 0; font-size: 18px; font-weight: 400; color: #0f172a; }
+  .textLink { font-size: 13px; color: #533afd; text-decoration: none; font-weight: 500; }
 
   .dashboardTable { width: 100%; border-collapse: collapse; }
-  .dashboardTable th { text-align: left; padding: 12px; border-bottom: 1px solid #f1f5f9; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .dashboardTable td { padding: 16px 12px; border-bottom: 1px solid #f8fafc; font-size: 14px; color: #334155; }
+  .dashboardTable th { text-align: left; padding: 10px; border-bottom: 1px solid #f1f5f9; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .dashboardTable td { padding: 12px 10px; border-bottom: 1px solid #f8fafc; font-size: 14px; color: #334155; }
 
   .statusPill {
-    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; text-transform: uppercase;
   }
   .statusPill.pending { background: #fffbeb; color: #92400e; }
   .statusPill.checked_in { background: #ecfdf5; color: #065f46; }
   .statusPill.checked_out { background: #f1f5f9; color: #475569; }
 
-  .sideCol { display: flex; flex-direction: column; gap: 32px; }
+  .sideCol { display: flex; flex-direction: column; gap: 24px; }
 
   .quickActionsCard {
     background: white;
     border: 1px solid #e2e8f0;
-    padding: 24px;
-    border-radius: 12px;
+    padding: 20px;
+    border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
   }
 
-  .quickActionsCard h3 { margin: 0 0 20px; font-size: 16px; font-weight: 500; color: #0f172a; }
+  .quickActionsCard h3 { margin: 0 0 16px; font-size: 15px; font-weight: 500; color: #0f172a; }
 
-  .actionButtons { display: flex; flex-direction: column; gap: 8px; }
+  .actionButtons { display: flex; flex-direction: column; gap: 6px; }
   .actionBtn {
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0;
