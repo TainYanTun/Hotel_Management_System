@@ -97,14 +97,6 @@ const Login = () => {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
-        
-        <div className="separator">
-          <span>or</span>
-        </div>
-        
-        <button type="button" className="btn-ghost full-width">
-          Sign in with SSO
-        </button>
       </div>
       
       <div className="auth-footer">

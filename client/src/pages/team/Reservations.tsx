@@ -6,12 +6,14 @@ type ReservationStatus =
   | "CONFIRMED"
   | "CANCELLED"
   | "CHECKED_IN"
-  | "CHECKED_OUT";
+  | "CHECKED_OUT"
+  | "NO_SHOW";
 
 type RoomStatus = "AVAILABLE" | "RESERVED" | "OCCUPIED" | "MAINTENANCE";
 
 type Reservation = {
   reservation_id: number;
+  guest_id: number;
   guest_name: string;
   phone: string;
   email: string;
@@ -54,6 +56,7 @@ const statusOptions: Array<ReservationStatus | "ALL"> = [
   "CHECKED_IN",
   "CHECKED_OUT",
   "CANCELLED",
+  "NO_SHOW",
 ];
 
 const emptyForm: FormData = {
@@ -117,10 +120,19 @@ const humanizeStatus = (status: string) =>
 const getStatusClassName = (status: ReservationStatus | RoomStatus) =>
   `statusBadge status-${status?.toLowerCase().replace("_", "-") || 'unknown'}`;
 
+const isOverdue = (dateStr: string, status: string) => {
+  if (status !== "CONFIRMED") return false;
+  const checkIn = new Date(dateStr.split('T')[0]);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return checkIn < today;
+};
+
 const Reservations = () => {
   const [filterStatus, setFilterStatus] = useState<ReservationStatus | "ALL">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(emptyForm);
   
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -141,6 +153,9 @@ const Reservations = () => {
   const role = roleMap[rawRole] || rawRole;
 
   const isManager = role === 'Manager';
+  const isReceptionist = role === 'Receptionist';
+  const isAdmin = role === 'Administrator';
+  const canPerformActions = isManager || isReceptionist || isAdmin;
 
   useEffect(() => {
     fetchAllData();
@@ -171,8 +186,53 @@ const Reservations = () => {
     }
   };
 
+  const updateReservationStatus = async (reservationId: number, roomId: number, newStatus: ReservationStatus) => {
+    try {
+      // 1. Update Reservation Status
+      const resResponse = await fetch(`/api/reservations/${reservationId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!resResponse.ok) throw new Error("Failed to update reservation");
+
+      // 2. Map Reservation Status to Room Status
+      let roomStatus: RoomStatus = "AVAILABLE";
+      if (newStatus === "CONFIRMED") roomStatus = "RESERVED";
+      if (newStatus === "CHECKED_IN") roomStatus = "OCCUPIED";
+      if (newStatus === "CHECKED_OUT" || newStatus === "CANCELLED" || newStatus === "NO_SHOW") roomStatus = "AVAILABLE";
+
+      // 3. Update Room Status
+      const roomResponse = await fetch(`/api/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: roomStatus })
+      });
+
+      if (roomResponse.ok) {
+        fetchAllData(); // Refresh UI
+      }
+    } catch (error) {
+      console.error('Error in operational transition:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    
+    // Final Validation before Submission
+    if (!isRoomAvailable(Number(formData.room_id), formData.check_in_date, formData.check_out_date)) {
+      setError("This room is already reserved or occupied for the selected dates.");
+      return;
+    }
+
+    if (!isGuestAvailable(formData.guest_id, formData.check_in_date, formData.check_out_date)) {
+      setError("This guest already has a reservation or stay overlapping with these dates.");
+      return;
+    }
+
     try {
       const response = await fetch('/api/reservations', {
         method: 'POST',
@@ -180,12 +240,24 @@ const Reservations = () => {
         body: JSON.stringify(formData)
       });
       
+      const data = await response.json();
       if (response.ok) {
+        // If created as CONFIRMED, update room to RESERVED immediately
+        if (formData.status === "CONFIRMED") {
+          await fetch(`/api/rooms/${formData.room_id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: "RESERVED" })
+          });
+        }
         closeModal();
         fetchAllData();
+      } else {
+        setError(data.error || "Failed to create reservation. Please check constraints.");
       }
     } catch (error) {
       console.error('Error creating reservation:', error);
+      setError("A network or server error occurred.");
     }
   };
 
@@ -210,32 +282,30 @@ const Reservations = () => {
   );
 
   const metrics = useMemo(() => {
-    const activeReservations = reservations.filter(
-      (reservation) =>
-        reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN",
-    );
-    const expectedRevenue = activeReservations.reduce(
-      (total, reservation) =>
-        total +
-        (typeof reservation.price_per_night === 'string' ? parseFloat(reservation.price_per_night) : reservation.price_per_night) *
-          getNights(reservation.check_in_date, reservation.check_out_date),
-      0,
-    );
+    // Business Logic: Realized Revenue is from Checked-In/Out guests. 
+    // Projected Revenue is from Pending/Confirmed.
+    const realized = reservations.filter(r => r.status === "CHECKED_IN" || r.status === "CHECKED_OUT");
+    const projected = reservations.filter(r => r.status === "PENDING" || r.status === "CONFIRMED");
+
+    const sumRevenue = (list: Reservation[]) => list.reduce((acc, r) => {
+      const price = typeof r.price_per_night === 'string' ? parseFloat(r.price_per_night) : r.price_per_night;
+      return acc + (price * getNights(r.check_in_date, r.check_out_date));
+    }, 0);
+
+    const realizedRevenue = sumRevenue(realized);
+    const projectedRevenue = sumRevenue(projected);
     
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = now.toISOString().split('T')[0];
     
-    const arrivalsToday = reservations.filter((reservation) => {
-      const arrivalDate = reservation.check_in_date.split('T')[0];
-      return arrivalDate === todayStr;
-    }).length;
-    const availableRooms = rooms.filter((room) => room.status === "AVAILABLE").length;
+    const arrivalsToday = reservations.filter(r => r.check_in_date.split('T')[0] === todayStr && r.status === "CONFIRMED").length;
+    const availableRooms = rooms.filter(r => r.status === "AVAILABLE").length;
 
     return [
-      { label: "Active reservations", value: activeReservations.length.toString(), detail: "Confirmed and in-house" },
-      { label: "Expected revenue", value: formatMoney(expectedRevenue), detail: "From active stays" },
-      { label: "Arrivals today", value: arrivalsToday.toString(), detail: "Live operational queue" },
-      { label: "Available rooms", value: availableRooms.toString(), detail: "Ready for assignment" },
+      { label: "Realized Revenue", value: formatMoney(realizedRevenue), detail: "Actual cash flow" },
+      { label: "Projected Revenue", value: formatMoney(projectedRevenue), detail: "Pipeline bookings" },
+      { label: "Arrivals Today", value: arrivalsToday.toString(), detail: "Awaiting Check-in" },
+      { label: "Available Inventory", value: availableRooms.toString(), detail: "Ready for sale" },
     ];
   }, [reservations, rooms]);
 
@@ -246,14 +316,72 @@ const Reservations = () => {
       : 0;
   const projectedTotal = selectedRoom ? selectedRoom.price_per_night * projectedNights : 0;
 
+  const normalizeDate = (dateStr: string) => {
+    if (!dateStr) return 0;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 0;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+
   const updateForm = (field: keyof FormData, value: string) => {
     setFormData((current) => ({ ...current, [field]: value }));
+  };
+
+  const isRoomAvailable = (roomId: number, checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut) return true;
+    
+    const start = normalizeDate(checkIn);
+    const end = normalizeDate(checkOut);
+    const targetRoom = rooms.find(rm => rm.room_id === roomId);
+    if (!targetRoom) return true;
+
+    return !reservations.some(r => {
+      if (r.room_number !== targetRoom.room_number) return false;
+      // Ignore non-blocking statuses
+      if (["CANCELLED", "CHECKED_OUT", "NO_SHOW"].includes(r.status)) return false;
+
+      const rStart = normalizeDate(r.check_in_date);
+      const rEnd = normalizeDate(r.check_out_date);
+
+      // Overlap logic: (StartA < EndB) and (EndA > StartB)
+      return (start < rEnd) && (end > rStart);
+    });
+  };
+
+  const isGuestAvailable = (guestId: string, checkIn: string, checkOut: string) => {
+    if (!guestId || !checkIn || !checkOut) return true;
+    
+    const start = normalizeDate(checkIn);
+    const end = normalizeDate(checkOut);
+
+    return !reservations.some(r => {
+      if (!r.guest_id || r.guest_id.toString() !== guestId) return false;
+      if (["CANCELLED", "CHECKED_OUT", "NO_SHOW"].includes(r.status)) return false;
+
+      const rStart = normalizeDate(r.check_in_date);
+      const rEnd = normalizeDate(r.check_out_date);
+
+      return (start < rEnd) && (end > rStart);
+    });
   };
 
   const closeModal = () => {
     setShowModal(false);
     setFormData(emptyForm);
+    setError(null);
   };
+
+  const roomConflict = useMemo(() => {
+    if (!formData.room_id || !formData.check_in_date || !formData.check_out_date) return false;
+    return !isRoomAvailable(Number(formData.room_id), formData.check_in_date, formData.check_out_date);
+  }, [formData.room_id, formData.check_in_date, formData.check_out_date, reservations, rooms]);
+
+  const guestConflict = useMemo(() => {
+    if (!formData.guest_id || !formData.check_in_date || !formData.check_out_date) return false;
+    return !isGuestAvailable(formData.guest_id, formData.check_in_date, formData.check_out_date);
+  }, [formData.guest_id, formData.check_in_date, formData.check_out_date, reservations]);
+
+  const hasConflict = roomConflict || guestConflict;
 
   return (
     <Layout>
@@ -268,7 +396,7 @@ const Reservations = () => {
               reservation flow, guest details, room readiness, and upcoming stays.
             </p>
           </div>
-          {!isManager && (
+          {canPerformActions && (
             <div className="heroActions">
               <button className="ghostButton" type="button" onClick={() => fetchAllData()}>
                 Refresh Feed
@@ -354,6 +482,7 @@ const Reservations = () => {
                     <th>Nights</th>
                     <th>Total</th>
                     <th>Status</th>
+                    {!isManager && <th>Quick Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -385,6 +514,9 @@ const Reservations = () => {
                           </td>
                           <td>
                             <strong>{formatDate(reservation.check_in_date)}</strong>
+                            {isOverdue(reservation.check_in_date, reservation.status) && (
+                              <span className="overdueBadge">Overdue</span>
+                            )}
                             <span>to {formatDate(reservation.check_out_date)}</span>
                           </td>
                           <td className="numericCell">{nights}</td>
@@ -394,12 +526,102 @@ const Reservations = () => {
                               {humanizeStatus(reservation.status)}
                             </span>
                           </td>
+                          {!isManager && (
+                            <td>
+                              <div className="actionGroup">
+                                {reservation.status === "PENDING" && (
+                                  <button 
+                                    className="actionBtn confirm"
+                                    title="Confirm Booking"
+                                    onClick={() => {
+                                      const room = rooms.find(r => r.room_number === reservation.room_number);
+                                      if (room) updateReservationStatus(reservation.reservation_id, room.room_id, "CONFIRMED");
+                                    }}
+                                  >
+                                    Confirm
+                                  </button>
+                                )}
+                                {reservation.status === "CONFIRMED" && (
+                                  <>
+                                    {(() => {
+                                      const today = new Date();
+                                      today.setHours(0,0,0,0);
+                                      const checkIn = new Date(reservation.check_in_date.split('T')[0]);
+                                      const checkOut = new Date(reservation.check_out_date.split('T')[0]);
+                                      
+                                      // Business Rule: Can check in if today is between check-in and check-out
+                                      const isStayWindow = today >= checkIn && today < checkOut;
+                                      const isFuture = today < checkIn;
+
+                                      if (isStayWindow) {
+                                        return (
+                                          <button 
+                                            className="actionBtn checkin"
+                                            title="Process Check-in"
+                                            onClick={() => {
+                                              const room = rooms.find(r => r.room_number === reservation.room_number);
+                                              if (room) updateReservationStatus(reservation.reservation_id, room.room_id, "CHECKED_IN");
+                                            }}
+                                          >
+                                            Check In
+                                          </button>
+                                        );
+                                      } else if (isFuture) {
+                                        return (
+                                          <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                            Awaiting {formatDate(reservation.check_in_date)}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    {canPerformActions && (
+                                      <button 
+                                        className="actionBtn noshow"
+                                        title="Mark as No Show"
+                                        onClick={() => {
+                                          const room = rooms.find(r => r.room_number === reservation.room_number);
+                                          if (room) updateReservationStatus(reservation.reservation_id, room.room_id, "NO_SHOW");
+                                        }}
+                                      >
+                                        No Show
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                                {reservation.status === "CHECKED_IN" && canPerformActions && (
+                                  <button 
+                                    className="actionBtn checkout"
+                                    title="Finalize Check-out"
+                                    onClick={() => {
+                                      const room = rooms.find(r => r.room_number === reservation.room_number);
+                                      if (room) updateReservationStatus(reservation.reservation_id, room.room_id, "CHECKED_OUT");
+                                    }}
+                                  >
+                                    Check Out
+                                  </button>
+                                )}
+                                {(reservation.status === "PENDING" || reservation.status === "CONFIRMED") && canPerformActions && (
+                                  <button 
+                                    className="actionBtn cancel"
+                                    title="Cancel Reservation"
+                                    onClick={() => {
+                                      const room = rooms.find(r => r.room_number === reservation.room_number);
+                                      if (room) updateReservationStatus(reservation.reservation_id, room.room_id, "CANCELLED");
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>No reservations found.</td>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '40px' }}>No reservations found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -436,12 +658,32 @@ const Reservations = () => {
                 className="reservationForm"
                 onSubmit={handleSubmit}
               >
+                {error && (
+                   <div style={{ 
+                     background: 'rgba(234, 34, 97, 0.1)', 
+                     color: '#ea2261', 
+                     padding: '12px', 
+                     borderRadius: '4px', 
+                     fontSize: '13px', 
+                     border: '1px solid rgba(234, 34, 97, 0.2)',
+                     marginBottom: '20px',
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: '8px'
+                   }}>
+                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                     {error}
+                   </div>
+                 )}
                 <label>
                   Guest
                   <select
                     required
                     value={formData.guest_id}
                     onChange={(event) => updateForm("guest_id", event.target.value)}
+                    style={{ border: guestConflict ? '1px solid #ea2261' : undefined, backgroundColor: guestConflict ? 'rgba(234, 34, 97, 0.05)' : undefined }}
                   >
                     <option value="">Select guest profile</option>
                     {guests.map((guest) => (
@@ -450,6 +692,11 @@ const Reservations = () => {
                       </option>
                     ))}
                   </select>
+                  {guestConflict && (
+                    <span style={{ color: '#ea2261', fontSize: '13px', marginTop: '6px', display: 'block', fontWeight: 400 }}>
+                      Guest already has a reservation for these dates
+                    </span>
+                  )}
                 </label>
 
                 <label>
@@ -458,10 +705,16 @@ const Reservations = () => {
                     required
                     value={formData.room_id}
                     onChange={(event) => updateForm("room_id", event.target.value)}
+                    style={{ border: roomConflict ? '1px solid #ea2261' : undefined, backgroundColor: roomConflict ? 'rgba(234, 34, 97, 0.05)' : undefined }}
                   >
                     <option value="">Select available room</option>
                     {rooms
-                      .filter((room) => room.status === "AVAILABLE" || room.room_id.toString() === formData.room_id)
+                      .filter((room) => {
+                        const isCurrentRoom = room.room_id.toString() === formData.room_id;
+                        // Business Rule: Show if Available OR if it doesn't conflict with other bookings for these dates
+                        const dateAvailable = isRoomAvailable(room.room_id, formData.check_in_date, formData.check_out_date);
+                        return dateAvailable || isCurrentRoom;
+                      })
                       .map((room) => (
                         <option key={room.room_id} value={room.room_id}>
                           {room.room_number} - {room.room_type} -{" "}
@@ -469,6 +722,11 @@ const Reservations = () => {
                         </option>
                       ))}
                   </select>
+                  {roomConflict && (
+                    <span style={{ color: '#ea2261', fontSize: '13px', marginTop: '6px', display: 'block', fontWeight: 400 }}>
+                      Room is occupied or reserved for these dates
+                    </span>
+                  )}
                 </label>
 
                 <div className="formColumns">
@@ -479,6 +737,7 @@ const Reservations = () => {
                       type="date"
                       value={formData.check_in_date}
                       onChange={(event) => updateForm("check_in_date", event.target.value)}
+                      style={{ border: (roomConflict || guestConflict) ? '1px solid #ea2261' : undefined }}
                     />
                   </label>
                   <label>
@@ -488,6 +747,7 @@ const Reservations = () => {
                       type="date"
                       value={formData.check_out_date}
                       onChange={(event) => updateForm("check_out_date", event.target.value)}
+                      style={{ border: (roomConflict || guestConflict) ? '1px solid #ea2261' : undefined }}
                     />
                   </label>
                 </div>
@@ -520,7 +780,7 @@ const Reservations = () => {
                   <button className="ghostButton" type="button" onClick={closeModal}>
                     Cancel
                   </button>
-                  <button className="primaryButton" type="submit">
+                  <button className="primaryButton" type="submit" disabled={hasConflict} style={{ opacity: hasConflict ? 0.5 : 1, cursor: hasConflict ? 'not-allowed' : 'pointer' }}>
                     Create Reservation
                   </button>
                 </div>
@@ -1084,6 +1344,41 @@ const reservationStyles = `
       justify-content: center;
     }
   }
+
+  .status-no-show { background: rgba(234, 34, 97, 0.1); color: #ea2261; border: 1px solid rgba(234, 34, 97, 0.2); }
+  
+  .overdueBadge {
+    display: inline-block;
+    background: rgba(155, 104, 41, 0.1);
+    color: #9b6829;
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: 2px;
+    margin-left: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .actionGroup { display: flex; gap: 6px; }
+  .actionBtn {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #e5edf5;
+    background: white;
+    transition: all 0.15s ease;
+  }
+  .actionBtn.confirm { color: #533afd; border-color: #b9b9f9; }
+  .actionBtn.checkin { background: #533afd; color: white; border-color: #533afd; }
+  .actionBtn.checkout { color: #108c3d; border-color: rgba(21, 190, 83, 0.3); }
+  .actionBtn.cancel { color: #ea2261; border-color: rgba(234, 34, 97, 0.2); }
+  .actionBtn.noshow { color: #64748d; border-color: #cbd5e1; background: #f8fafc; font-weight: 400; }
+  .actionBtn.noshow:hover { background: #f1f5f9; color: #475569; }
+  
+  .actionBtn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 `;
 
 export default Reservations;

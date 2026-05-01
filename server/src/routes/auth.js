@@ -20,10 +20,19 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(Number(process.env.BCRYPT_SALT_ROUNDS) || 10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Map human-readable role to DB enum
+    const roleMap = {
+      'Administrator': 'ADMIN',
+      'Manager': 'MANAGER',
+      'Receptionist': 'RECEPTIONIST',
+      'Finance Officer': 'FINANCE'
+    };
+    const dbRole = roleMap[role] || 'RECEPTIONIST';
+
     // Insert user
     const newUser = await query(
       'INSERT INTO users (username, password_hash, full_name, role) VALUES ($1, $2, $3, $4) RETURNING user_id, username, role, full_name',
-      [username, passwordHash, full_name, role || 'Receptionist']
+      [username, passwordHash, full_name, dbRole]
     );
 
     // Generate JWT

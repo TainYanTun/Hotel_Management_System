@@ -10,6 +10,7 @@ router.get('/', async (req, res) => {
     const sql = `
       SELECT 
         r.reservation_id,
+        r.guest_id,
         r.booking_date,
         r.check_in_date,
         r.check_out_date,

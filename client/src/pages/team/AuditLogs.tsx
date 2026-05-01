@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout";
 
 type AuditLog = {
@@ -12,15 +13,31 @@ type AuditLog = {
 };
 
 const AuditLogs: React.FC = () => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const rawRole = user.role || "Receptionist";
+  const roleMap: Record<string, string> = {
+    'ADMIN': 'Administrator',
+    'FINANCE': 'Finance Officer',
+    'MANAGER': 'Manager',
+    'RECEPTIONIST': 'Receptionist'
+  };
+  const role = roleMap[rawRole] || rawRole;
+  const isAuthorized = role === 'Administrator' || role === 'Manager';
+
   useEffect(() => {
+    if (!isAuthorized) {
+      navigate('/dashboard');
+      return;
+    }
     fetchData();
-  }, []);
+  }, [role, navigate, isAuthorized]);
 
   const fetchData = async () => {
     setIsLoading(true);

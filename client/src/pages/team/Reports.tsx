@@ -335,10 +335,16 @@ const Reports = () => {
     const available = rooms.filter((r) => r.status === "AVAILABLE").length;
     const maintenance = rooms.filter((r) => r.status === "MAINTENANCE").length;
 
-    const totalRevenue = reservations.reduce((acc, res) => {
-      const price = typeof res.price_per_night === "string" ? parseFloat(res.price_per_night) : res.price_per_night;
-      return acc + (price * getNights(res.check_in_date, res.check_out_date));
+    const realized = reservations.filter(r => r.status === "CHECKED_IN" || r.status === "CHECKED_OUT");
+    const projected = reservations.filter(r => r.status === "PENDING" || r.status === "CONFIRMED");
+
+    const sumRevenue = (list: Reservation[]) => list.reduce((acc, r) => {
+      const price = typeof r.price_per_night === "string" ? parseFloat(r.price_per_night) : r.price_per_night;
+      return acc + (price * getNights(r.check_in_date, r.check_out_date));
     }, 0);
+
+    const realizedRevenue = sumRevenue(realized);
+    const projectedRevenue = sumRevenue(projected);
 
     const occupancyRate = Math.round((occupied / totalRooms) * 100);
 
@@ -347,12 +353,15 @@ const Reports = () => {
       { label: "Confirmed", value: reservations.filter(r => r.status === "CONFIRMED").length, color: "#d6d9fc" },
       { label: "Checked in", value: reservations.filter(r => r.status === "CHECKED_IN").length, color: "#b9b9f9" },
       { label: "Checked out", value: reservations.filter(r => r.status === "CHECKED_OUT").length, color: "rgba(21, 190, 83, 0.28)" },
+      { label: "No show", value: reservations.filter(r => r.status === "NO_SHOW").length, color: "#cbd5e1" },
     ];
 
     const maxFunnel = Math.max(...funnel.map(f => f.value), 1);
 
     return {
-      totalRevenue,
+      totalRevenue: realizedRevenue + projectedRevenue,
+      realizedRevenue,
+      projectedRevenue,
       occupancyRate,
       roomSegments: [
         { label: "Occupied", value: `${occupied} rooms`, width: `${(occupied / totalRooms) * 100}%`, color: "var(--stripe-purple)" },
@@ -387,22 +396,22 @@ const Reports = () => {
             <div>
               <div style={pageStyles.previewHeader}>
                 <div>
-                  <div className="stat-label">Total Portfolio Revenue</div>
-                  <div style={pageStyles.previewValue}>{formatMoney(derivedMetrics.totalRevenue)}</div>
+                  <div className="stat-label">Realized Revenue</div>
+                  <div style={pageStyles.previewValue}>{formatMoney(derivedMetrics.realizedRevenue)}</div>
                 </div>
               </div>
               <p style={{ color: "var(--color-body)", fontSize: "13px", lineHeight: 1.5, margin: "12px 0 0" }}>
-                Cumulative revenue across all confirmed and pending reservations.
+                Actual revenue collected from guests who have stayed or are currently in-house.
               </p>
             </div>
           </aside>
 
           <div style={pageStyles.heroGrid}>
             <article style={pageStyles.heroMetricCard}>
-              <div className="stat-label">Monthly Revenue</div>
-              <div style={pageStyles.metricValue}>{formatMoney(derivedMetrics.totalRevenue * 0.12)}</div>
-              <div className="stat-change" style={{ color: "var(--color-success-text)" }}>
-                +12% vs target
+              <div className="stat-label">Projected Revenue</div>
+              <div style={pageStyles.metricValue}>{formatMoney(derivedMetrics.projectedRevenue)}</div>
+              <div className="stat-change" style={{ color: "var(--stripe-purple)" }}>
+                Pipeline Bookings
               </div>
             </article>
             <article style={pageStyles.heroMetricCard}>
